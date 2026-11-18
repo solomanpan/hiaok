@@ -3,6 +3,8 @@ name = "hiaok"
 version = "0.1.0"
 description = "Lightweight permission center - DDD, event-driven, read/write split"
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "jacklasofo", email = "125986898+jacklasofo@users.noreply.github.com" }
 ]

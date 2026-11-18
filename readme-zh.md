@@ -449,3 +449,7 @@ tests/
 - 从库有复制延迟：写完立刻读可能短暂读不到。异步写入时更要通过 `/log/get-by-request` 确认结果，而不是立刻回读。
 - 事件在提交后发布，进程在两者之间崩溃会丢事件；需要严格保证时改为 transactional outbox。
 - 进入死信的写命令会一直显示 `pending`，需要人工处理。
+
+## 许可证
+
+[MIT](LICENSE) © 2026 PAN JIE <sanbaikuai@gmail.com>

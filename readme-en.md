@@ -451,3 +451,7 @@ tests/
 - The slave lags behind the master: a read right after a write may briefly miss it. With asynchronous writes, confirm through `/log/get-by-request` instead of reading back immediately.
 - Events are published after commit; a crash between the two loses the event. Switch to a transactional outbox when you need a strict guarantee.
 - A write command that was dead-lettered shows `pending` forever and needs manual handling.
+
+## License
+
+[MIT](LICENSE) © 2026 PAN JIE <sanbaikuai@gmail.com>

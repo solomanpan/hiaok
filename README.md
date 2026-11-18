@@ -11,3 +11,5 @@ A lightweight permission center: four DDD layers, event-driven (Kafka / Redis St
 Each guide covers: quick start · how to use the DDD framework · how authorization works · Kafka · Redis · i18n · API conventions · configuration · testing.
 
 System design (English): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Meta-template code generation: [codegen/README.md](codegen/README.md) · Database DDL: [db.properties.md](db.properties.md)
+
+License: [MIT](LICENSE) © 2026 PAN JIE <sanbaikuai@gmail.com>
