@@ -7,7 +7,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field, fields
 from datetime import UTC, datetime
-from typing import ClassVar
+from typing import Any, ClassVar
 
 from expression import Option, option
 
@@ -150,3 +150,22 @@ class SysConfigChanged(DomainEvent):
     aggregate_field: ClassVar[str] = "config_key"
     config_key: str
     config_value: str
+
+
+# ---------------------------------------------------------------- write requests (asynchronous writes)
+@dataclass(frozen=True, kw_only=True)
+class WriteRequested(DomainEvent):
+    """A request to change data, accepted by the API and executed later by a consumer.
+
+    ``request_id`` is the caller's ``requestId``: it makes the execution idempotent and is the key to look the
+    outcome up. ``command_type`` is ``<EntityType>.<action>`` (e.g. ``Role.update``); ``payload`` is the JSON form
+    of the application command. Ordering per aggregate: the Kafka key is ``target_uuid``.
+    """
+
+    aggregate_field: ClassVar[str] = "target_uuid"
+    request_id: str
+    entity_type: str
+    command_type: str
+    target_uuid: str
+    operator: str
+    payload: dict[str, Any] = field(default_factory=dict)

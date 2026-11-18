@@ -62,7 +62,13 @@ def test_envelope_and_dto_fields_are_camel_case(spec):
 def test_context_headers_are_documented(spec):
     op = spec["paths"]["/v1/api/hiaok/role/get"]["post"]
     headers = {p["name"] for p in op["parameters"] if p["in"] == "header"}
-    assert headers == {"x-operator", "x-request-id", "authorization"}
+    assert headers == {"x-operator", "x-request-id"}
+
+
+def test_protected_routes_declare_the_bearer_scheme(spec):
+    assert spec["components"]["securitySchemes"]["HTTPBearer"]["scheme"] == "bearer"
+    assert spec["paths"]["/v1/api/hiaok/role/get"]["post"]["security"] == [{"HTTPBearer": []}]
+    assert "security" not in spec["paths"]["/v1/api/hiaok/auth/login"]["post"]
 
 
 def test_swagger_ui_served():

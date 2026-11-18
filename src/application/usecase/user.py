@@ -22,14 +22,14 @@ from ..model import (
 )
 from ..service import MenuService, PermissionService, RoleService, TenantService, UserService
 from ._checks import ensure_all_exist
-from .errors import UserCaseErrors
+from .errors import UseCaseErrors
 
 
 def _same_tenant(roles: Iterable[Role], tenant_uuid: str) -> Result[list[Role], DomainError]:
     roles = list(roles)
     foreign = sorted(r.role_code.value for r in roles if r.tenant_uuid != tenant_uuid)
     if foreign:
-        return UserCaseErrors.role_tenant_mismatch.err(roles=foreign)
+        return UseCaseErrors.role_tenant_mismatch.err(roles=foreign)
     return Ok(roles)
 
 
@@ -112,4 +112,4 @@ def get_user_authorities(
 
 
 def _enabled(user: User) -> Result[User, DomainError]:
-    return Ok(user) if user.enabled else UserCaseErrors.user_disabled.err(user_uuid=user.user_uuid)
+    return Ok(user) if user.enabled else UseCaseErrors.user_disabled.err(user_uuid=user.user_uuid)

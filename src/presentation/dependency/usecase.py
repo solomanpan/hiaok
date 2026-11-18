@@ -1,6 +1,6 @@
-"""Usercases injected into endpoints: ``usercase: RegisterUserDep``.
+"""Usecases injected into endpoints: ``usecase: RegisterUserDep``.
 
-Each provider partially applies a curried usercase with the services it needs.
+Each provider partially applies a curried usecase with the services it needs.
 """
 
 from __future__ import annotations
@@ -15,6 +15,7 @@ from hiaok_core.exception import DomainError
 
 from ...application.model import (
     AuthorityModel,
+    CommandOutcome,
     CreateDepartment,
     CreateMenu,
     CreateOrganization,
@@ -54,13 +55,14 @@ from ...application.model import (
     UserModel,
 )
 from ...application.model.base import CreateCommand
-from ...application.usercase import employee as employee_uc
-from ...application.usercase import organization as org_uc
-from ...application.usercase import role as role_uc
-from ...application.usercase import sys_config as config_uc
-from ...application.usercase import tree as tree_uc
-from ...application.usercase import user as user_uc
-from ...application.usercase.crud import CrudUserCases, crud_usercases
+from ...application.usecase import command as command_uc
+from ...application.usecase import employee as employee_uc
+from ...application.usecase import organization as org_uc
+from ...application.usecase import role as role_uc
+from ...application.usecase import sys_config as config_uc
+from ...application.usecase import tree as tree_uc
+from ...application.usecase import user as user_uc
+from ...application.usecase.crud import CrudUseCases, crud_usecases
 from ...domain.entity import Employee, User
 from ...domain.repository import Page, PageQuery
 from .resources import ResourcesDep
@@ -85,63 +87,61 @@ type R[T] = Awaitable[Result[T, DomainError]]
 
 
 # ---------------------------------------------------------------- CRUD (one bundle per aggregate)
-type OrganizationCrud = CrudUserCases[OrganizationModel, CreateOrganization, UpdateOrganization]
-type TenantCrud = CrudUserCases[TenantModel, CreateTenant, UpdateTenant]
-type UserCrud = CrudUserCases[UserModel, CreateCommand[User], UpdateUser]  # create -> RegisterUserDep
-type UserGroupCrud = CrudUserCases[UserGroupModel, CreateUserGroup, UpdateUserGroup]
-type ProjectCrud = CrudUserCases[ProjectModel, CreateProject, UpdateProject]
-type RoleCrud = CrudUserCases[RoleModel, CreateRole, UpdateRole]
-type PermissionCrud = CrudUserCases[PermissionModel, CreatePermission, UpdatePermission]
-type MenuCrud = CrudUserCases[MenuModel, CreateMenu, UpdateMenu]
-type DepartmentCrud = CrudUserCases[DepartmentModel, CreateDepartment, UpdateDepartment]
-type EmployeeCrud = CrudUserCases[
-    EmployeeModel, CreateCommand[Employee], UpdateEmployee
-]  # create -> OnboardEmployeeDep
-type SysConfigCrud = CrudUserCases[SysConfigModel, CreateSysConfig, UpdateSysConfig]
+type OrganizationCrud = CrudUseCases[OrganizationModel, CreateOrganization, UpdateOrganization]
+type TenantCrud = CrudUseCases[TenantModel, CreateTenant, UpdateTenant]
+type UserCrud = CrudUseCases[UserModel, CreateCommand[User], UpdateUser]  # create -> RegisterUserDep
+type UserGroupCrud = CrudUseCases[UserGroupModel, CreateUserGroup, UpdateUserGroup]
+type ProjectCrud = CrudUseCases[ProjectModel, CreateProject, UpdateProject]
+type RoleCrud = CrudUseCases[RoleModel, CreateRole, UpdateRole]
+type PermissionCrud = CrudUseCases[PermissionModel, CreatePermission, UpdatePermission]
+type MenuCrud = CrudUseCases[MenuModel, CreateMenu, UpdateMenu]
+type DepartmentCrud = CrudUseCases[DepartmentModel, CreateDepartment, UpdateDepartment]
+type EmployeeCrud = CrudUseCases[EmployeeModel, CreateCommand[Employee], UpdateEmployee]  # create -> OnboardEmployeeDep
+type SysConfigCrud = CrudUseCases[SysConfigModel, CreateSysConfig, UpdateSysConfig]
 
 
 def get_organization_crud(s: OrganizationServiceDep) -> OrganizationCrud:
-    return crud_usercases(s, OrganizationModel.from_domain)
+    return crud_usecases(s, OrganizationModel.from_domain)
 
 
 def get_tenant_crud(s: TenantServiceDep) -> TenantCrud:
-    return crud_usercases(s, TenantModel.from_domain)
+    return crud_usecases(s, TenantModel.from_domain)
 
 
 def get_user_crud(s: UserServiceDep) -> UserCrud:
-    return crud_usercases(s, UserModel.from_domain)
+    return crud_usecases(s, UserModel.from_domain)
 
 
 def get_user_group_crud(s: UserGroupServiceDep) -> UserGroupCrud:
-    return crud_usercases(s, UserGroupModel.from_domain)
+    return crud_usecases(s, UserGroupModel.from_domain)
 
 
 def get_project_crud(s: ProjectServiceDep) -> ProjectCrud:
-    return crud_usercases(s, ProjectModel.from_domain)
+    return crud_usecases(s, ProjectModel.from_domain)
 
 
 def get_role_crud(s: RoleServiceDep) -> RoleCrud:
-    return crud_usercases(s, RoleModel.from_domain)
+    return crud_usecases(s, RoleModel.from_domain)
 
 
 def get_permission_crud(s: PermissionServiceDep) -> PermissionCrud:
-    return crud_usercases(s, PermissionModel.from_domain)
+    return crud_usecases(s, PermissionModel.from_domain)
 
 
 def get_menu_crud(s: MenuServiceDep) -> MenuCrud:
-    return crud_usercases(s, MenuModel.from_domain)
+    return crud_usecases(s, MenuModel.from_domain)
 
 
 def get_department_crud(s: DepartmentServiceDep) -> DepartmentCrud:
-    return crud_usercases(s, DepartmentModel.from_domain)
+    return crud_usecases(s, DepartmentModel.from_domain)
 
 
 def get_employee_crud(s: EmployeeServiceDep) -> EmployeeCrud:
-    return crud_usercases(s, EmployeeModel.from_domain)
+    return crud_usecases(s, EmployeeModel.from_domain)
 
 
 def get_sys_config_crud(s: SysConfigServiceDep) -> SysConfigCrud:
-    return crud_usercases(s, SysConfigModel.from_domain)
+    return crud_usecases(s, SysConfigModel.from_domain)
 
 
 OrganizationCrudDep = Annotated[OrganizationCrud, Depends(get_organization_crud)]
@@ -177,6 +177,7 @@ type OnboardEmployeeUC = Callable[[OnboardEmployee], R[tuple[EmployeeModel, User
 type TransferEmployee = Callable[[str, str, str], R[EmployeeModel]]
 type ResignEmployee = Callable[[str, str, date], R[EmployeeModel]]
 type GetConfigByKey = Callable[[str, str], R[SysConfigModel]]
+type GetCommandOutcome = Callable[[str, str], Awaitable[CommandOutcome]]
 type ListLogs = Callable[[str, PageQuery, str | None], Awaitable[Page[SysLogModel]]]
 
 
@@ -266,27 +267,21 @@ def get_config_by_key(configs: SysConfigServiceDep) -> GetConfigByKey:
     return config_uc.get_config_by_key(configs)
 
 
+def get_command_outcome(logs: SysLogServiceDep) -> GetCommandOutcome:
+    return command_uc.command_outcome(logs)
+
+
 def get_list_logs(logs: SysLogServiceDep) -> ListLogs:
     return config_uc.list_logs(logs)
 
 
-ProvisionOrganizationDep = Annotated[ProvisionOrganization, Depends(get_provision_organization)]
-UpdateOrgDetailDep = Annotated[UpdateOrgDetail, Depends(get_update_org_detail)]
 RegisterUserDep = Annotated[RegisterUserUC, Depends(get_register_user)]
-AssignUserRolesDep = Annotated[AssignUserRoles, Depends(get_assign_user_roles)]
 ChangePasswordDep = Annotated[ChangePassword, Depends(get_change_password)]
 GetUserAuthoritiesDep = Annotated[GetUserAuthorities, Depends(get_user_authorities)]
-GrantRolePermissionsDep = Annotated[GrantRolePermissions, Depends(get_grant_role_permissions)]
-AssignRoleMenusDep = Annotated[AssignRoleMenus, Depends(get_assign_role_menus)]
 MenuTreeDep = Annotated[MenuTree, Depends(get_menu_tree)]
-MoveMenuDep = Annotated[MoveMenu, Depends(get_move_menu)]
 DepartmentTreeDep = Annotated[DepartmentTree, Depends(get_department_tree)]
-MoveDepartmentDep = Annotated[MoveDepartment, Depends(get_move_department)]
 GroupTreeDep = Annotated[GroupTree, Depends(get_group_tree)]
-MoveGroupDep = Annotated[MoveGroup, Depends(get_move_group)]
-AppointDepartmentHeadDep = Annotated[AppointDepartmentHead, Depends(get_appoint_department_head)]
 OnboardEmployeeDep = Annotated[OnboardEmployeeUC, Depends(get_onboard_employee)]
-TransferEmployeeDep = Annotated[TransferEmployee, Depends(get_transfer_employee)]
-ResignEmployeeDep = Annotated[ResignEmployee, Depends(get_resign_employee)]
 GetConfigByKeyDep = Annotated[GetConfigByKey, Depends(get_config_by_key)]
 ListLogsDep = Annotated[ListLogs, Depends(get_list_logs)]
+GetCommandOutcomeDep = Annotated[GetCommandOutcome, Depends(get_command_outcome)]

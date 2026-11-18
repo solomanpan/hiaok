@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from expression import Ok, Result
 from hiaok_core.exception import DomainError, not_found
-from hiaok_core.facade import Cache, EventPublisher, IdGenerator, TransactionManager, uuid_hex
+from hiaok_core.facade import Cache, EventPublisher, IdGenerator, TransactionManager
 
 from ...domain.entity import SysConfig
 from ...domain.repository import SysConfigRepository
 from ..model import SysConfigModel
 from .base import CrudService
 from .datasource import slave
+from .ids import next_id
 
 
 def config_cache_key(org_uuid: str, config_key: str) -> str:
@@ -27,7 +28,7 @@ class SysConfigService(CrudService[SysConfig]):
         publisher: EventPublisher,
         cache: Cache,
         ttl_seconds: int = 300,
-        new_id: IdGenerator = uuid_hex,
+        new_id: IdGenerator = next_id,
     ) -> None:
         super().__init__(tx, repository, publisher, new_id)
         self._configs = repository

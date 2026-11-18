@@ -39,7 +39,7 @@ def redis_config() -> RedisConfig:
 
 @pytest.fixture
 def kafka_config() -> KafkaConfig:
-    cfg = KafkaConfig(topic="hiaok-it-events", group_id="hiaok-it")
+    cfg = KafkaConfig(topic_prefix="hiaok-it", group_id="hiaok-it")
     host, _, port = cfg.bootstrap_servers.split(",")[0].partition(":")
     if not _reachable(host, int(port or 9092)):
         pytest.skip(f"kafka not reachable at {cfg.bootstrap_servers}")

@@ -1,6 +1,9 @@
+from .auth_service import AuthService
 from .base import ApplicationService, CrudService
+from .command_service import CommandService, command_log_uuid
 from .datasource import master, slave
 from .employee_service import EmployeeService
+from .ids import command_uuid, deterministic_ids, next_id
 from .orchestration_services import OnboardingService, Provisioned, ProvisioningService
 from .organization_service import OrganizationService
 from .role_service import RoleService
@@ -12,6 +15,8 @@ from .user_service import UserService
 
 __all__ = [
     "ApplicationService",
+    "AuthService",
+    "CommandService",
     "CrudService",
     "DepartmentService",
     "EmployeeService",
@@ -28,7 +33,11 @@ __all__ = [
     "TenantService",
     "UserGroupService",
     "UserService",
+    "command_log_uuid",
+    "command_uuid",
     "config_cache_key",
+    "deterministic_ids",
     "master",
+    "next_id",
     "slave",
 ]

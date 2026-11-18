@@ -4,7 +4,7 @@ from collections.abc import Iterable
 
 from expression import Option, Result
 from hiaok_core.exception import DomainError
-from hiaok_core.facade import EventPublisher, IdGenerator, TransactionManager, uuid_hex
+from hiaok_core.facade import EventPublisher, IdGenerator, TransactionManager
 from hiaok_core.fp import AsyncResult
 
 from ...domain.entity import User
@@ -13,6 +13,7 @@ from ...domain.vo import PasswordHash, RoleAssignment
 from ..model import RegisterUser
 from .base import CrudService
 from .datasource import master, slave
+from .ids import next_id
 
 
 class UserService(CrudService[User]):
@@ -23,7 +24,7 @@ class UserService(CrudService[User]):
         tx: TransactionManager,
         repository: UserRepository,
         publisher: EventPublisher,
-        new_id: IdGenerator = uuid_hex,
+        new_id: IdGenerator = next_id,
     ) -> None:
         super().__init__(tx, repository, publisher, new_id)
         self._users = repository

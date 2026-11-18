@@ -13,6 +13,7 @@ class AppConfig(BaseSettings):
     host: str = "0.0.0.0"
     port: int = 8000
     log_level: str = "INFO"
+    default_locale: Literal["en", "zh", "ja"] = "en"  # message language when Accept-Language names none we support
     broker: Literal["redis", "kafka", "memory"] = "redis"
     cache: Literal["redis", "memory"] = "redis"
     consume_events: bool = True  # False => API node only publishes; run `hiaok worker` to consume

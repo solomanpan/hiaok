@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from expression import Error, Ok, Result
 from hiaok_core.exception import DomainError
-from hiaok_core.facade import EventPublisher, IdGenerator, TransactionManager, uuid_hex
+from hiaok_core.facade import EventPublisher, IdGenerator, TransactionManager
 from hiaok_core.fp import AsyncResult
 
 from ...domain.entity import Employee, Organization, Role, Tenant, User
@@ -29,6 +29,7 @@ from ..model import (
 from .base import ApplicationService
 from .datasource import master
 from .employee_service import EmployeeService
+from .ids import next_id
 from .organization_service import OrganizationService
 from .role_service import RoleService
 from .simple_services import TenantService
@@ -58,7 +59,7 @@ class ProvisioningService(ApplicationService):
         tenants: TenantService,
         roles: RoleService,
         configs: SysConfigService,
-        new_id: IdGenerator = uuid_hex,
+        new_id: IdGenerator = next_id,
     ) -> None:
         super().__init__(tx, publisher, new_id)
         self._orgs, self._tenants, self._roles, self._configs = organizations, tenants, roles, configs
@@ -116,7 +117,7 @@ class OnboardingService(ApplicationService):
         publisher: EventPublisher,
         employees: EmployeeService,
         users: UserService,
-        new_id: IdGenerator = uuid_hex,
+        new_id: IdGenerator = next_id,
     ) -> None:
         super().__init__(tx, publisher, new_id)
         self._employees, self._users = employees, users

@@ -75,6 +75,10 @@ class SqlSysLogRepository:
     async def append(self, log: SysLog) -> None:
         await self._logs.insert_ignore(log)
 
+    async def get(self, org_uuid: str, log_uuid: str) -> Option[SysLog]:
+        row = await self._logs.get(org_uuid, log_uuid)
+        return option.of_obj(None if row is None else self._logs.to_entity(row))
+
     async def list(self, org_uuid: str, page: PageQuery, event_type: str | None = None) -> Page[SysLog]:
         filters = {} if event_type is None else {"event_type": event_type}
         rows, total = await self._logs.page(org_uuid, page.offset, page.limit, newest_first=True, **filters)

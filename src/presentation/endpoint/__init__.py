@@ -1,12 +1,13 @@
 """Routers: ``POST /v1/api/hiaok/<resource>/<action>``.
 
-Each endpoint: ``ApiRequest[request DTO]`` -> usercase (injected) -> ``ApiResponse[response DTO]``.
+Each endpoint: ``ApiRequest[request DTO]`` -> usecase (injected) -> ``ApiResponse[response DTO]``.
 """
 
 from fastapi import APIRouter, Depends
 
 from ..openapi import context_headers
 from . import (
+    auth,
     department,
     employee,
     health,
@@ -25,6 +26,7 @@ from . import (
 API_PREFIX = "/v1/api/hiaok"
 api_router = APIRouter(prefix=API_PREFIX, dependencies=[Depends(context_headers)])
 for module in (
+    auth,
     organization,
     tenant,
     user,

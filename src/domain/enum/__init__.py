@@ -38,5 +38,6 @@ class ConfigValueType(StrEnum):
 
 class LogType(StrEnum):
     EVENT = "event"
+    COMMAND = "command"  # outcome of an asynchronous write request (success / failure)
     OPERATION = "operation"
     LOGIN = "login"

@@ -15,10 +15,12 @@ import anyio
 from fastapi import FastAPI
 
 from .application.config import Settings, get_settings
-from .application.service import SysLogService
-from .application.usercase.event_handler import subscribe_event_handlers
+from .application.service import CommandService, SysLogService
+from .application.usecase.command import write_handler
+from .application.usecase.event_handler import subscribe_event_handlers
 from .infrastructure.repository import SqlSysLogRepository
 from .infrastructure.resources import Resources, build_resources, open_resources
+from .presentation.dependency import build_write_handlers
 from .presentation.endpoint import api_router, health
 from .presentation.exception import install_exception_handlers
 from .presentation.middleware import install_context_middleware
@@ -34,9 +36,12 @@ log = logging.getLogger("hiaok")
 
 
 def wire_event_handlers(resources: Resources) -> None:
-    """Consumers: every domain event -> sys_log; SysConfigChanged -> evict cache."""
+    """Consumers: WriteRequested -> run the usecase + record the outcome; every other domain event -> sys_log;
+    SysConfigChanged -> evict cache."""
     logs = SysLogService(resources.tx, SqlSysLogRepository(resources.db))
-    subscribe_event_handlers(resources.bus, logs, resources.cache)
+    commands = CommandService(resources.tx, logs)
+    on_write = write_handler(commands, build_write_handlers(resources))
+    subscribe_event_handlers(resources.bus, logs, resources.cache, on_write)
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:

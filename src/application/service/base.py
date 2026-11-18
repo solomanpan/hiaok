@@ -5,7 +5,7 @@ from typing import ClassVar
 
 from expression import Error, Ok, Result
 from hiaok_core.exception import DomainError, not_found
-from hiaok_core.facade import EventPublisher, IdGenerator, TransactionManager, uuid_hex
+from hiaok_core.facade import EventPublisher, IdGenerator, TransactionManager
 from hiaok_core.fp import AsyncResult
 
 from ...domain.entity import AggregateRoot
@@ -13,12 +13,13 @@ from ...domain.entity.event import DomainEvent, EntityDeleted
 from ...domain.repository import Page, PageQuery, Repository
 from ..model.base import CreateCommand, UpdateCommand
 from .datasource import master, slave
+from .ids import next_id
 
 
 class ApplicationService:
     """Owns the transaction boundary (``@master``/``@slave``) and publishes events after commit."""
 
-    def __init__(self, tx: TransactionManager, publisher: EventPublisher, new_id: IdGenerator = uuid_hex) -> None:
+    def __init__(self, tx: TransactionManager, publisher: EventPublisher, new_id: IdGenerator = next_id) -> None:
         self._tx = tx
         self._publisher = publisher
         self._new_id = new_id
@@ -61,7 +62,7 @@ class CrudService[A: AggregateRoot](ApplicationService):
         tx: TransactionManager,
         repository: Repository[A],
         publisher: EventPublisher,
-        new_id: IdGenerator = uuid_hex,
+        new_id: IdGenerator = next_id,
     ) -> None:
         super().__init__(tx, publisher, new_id)
         self._repo = repository

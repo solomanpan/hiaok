@@ -38,7 +38,7 @@ codegen/
 ## 写模板时的项目约定
 
 - `src/` 内部用**相对导入**（`from ..domain.entity import ...`），不要写 `from src...`（架构测试会检查）
-- 分层：endpoint → usercase → service → domain 仓储接口；DAO 用 `XxxDO`，实现 `to_entity` / `to_do`
+- 分层：endpoint → usecase → service → domain 仓储接口；DAO 用 `XxxDO`，实现 `to_entity` / `to_do`
 - **Swagger**：生成的 router 写 `APIRouter(prefix=..., tags=["{{ snake_name }}"])`，并在
   `src/presentation/openapi.py` 的 `OPENAPI_TAGS` 加一条分组说明；endpoint 的 docstring 会显示为接口描述，
   返回值标注 ResponseDTO 类型，Swagger 才有响应结构

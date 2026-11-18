@@ -54,7 +54,7 @@ def test_layer_dependencies(layer, forbidden):
     ("layer", "allowed"),
     [
         ("domain", {"entity", "vo", "enum", "service", "repository"}),
-        ("application", {"service", "usercase", "config", "model"}),
+        ("application", {"service", "usecase", "config", "model"}),
         ("presentation", {"endpoint", "schema", "dependency"}),
     ],
 )

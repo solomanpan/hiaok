@@ -1,1 +1,1 @@
-"""Application layer: usercases, services (transaction + datasource routing), models, config."""
+"""Application layer: usecases, services (transaction + datasource routing), models, config."""

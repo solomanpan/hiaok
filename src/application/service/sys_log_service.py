@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from expression import Option
 from hiaok_core.facade import TransactionManager
 
 from ...domain.entity import SysLog
@@ -19,6 +20,10 @@ class SysLogService:
     @master
     async def append(self, log: SysLog) -> None:
         await self._repo.append(log)
+
+    @slave
+    async def find(self, org_uuid: str, log_uuid: str) -> Option[SysLog]:
+        return await self._repo.get(org_uuid, log_uuid)
 
     @slave
     async def list(self, org_uuid: str, page: PageQuery, event_type: str | None = None) -> Page[SysLog]:

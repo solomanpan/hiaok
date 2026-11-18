@@ -16,12 +16,14 @@ from expression import Error, Result
 from hiaok_core.exception import DomainError
 from pydantic import Field
 
+from ..i18n import localize
 from .common import ApiModel
 
 SUCCESS = 0
 # error ``code`` per DomainError.kind (HTTP-like numbers, but the HTTP status itself stays 200)
 CODE_OF_KIND = {"validation": 400, "forbidden": 403, "not_found": 404, "conflict": 409}
 INVALID_REQUEST = 400
+UNAUTHENTICATED = 401
 INTERNAL_ERROR = 500
 UPSTREAM_ERROR = 502
 
@@ -54,7 +56,7 @@ def reply[T, R](result: Result[T, DomainError], to_response: Callable[[T], R]) -
     """``Result`` -> envelope. Domain errors are *values*: they become ``code != 0``, not exceptions."""
     if isinstance(result, Error):
         err = result.error
-        return ApiResponse[R].fail(CODE_OF_KIND[err.kind], err.message, err.code)
+        return ApiResponse[R].fail(CODE_OF_KIND[err.kind], localize(err), err.code)
     return ApiResponse[R].ok(to_response(result.ok))
 
 

@@ -1,11 +1,13 @@
 """Dependency injection (FastAPI ``Depends``).
 
-    resources (app.state) -> repository -> service (@master/@slave) -> usercase
+    resources (app.state) -> repository -> service (@master/@slave) -> usecase
 
-Endpoints only declare the usercase they need, e.g. ``usercase: RegisterUserDep``; everything below it is
+Endpoints only declare the usecase they need, e.g. ``usecase: RegisterUserDep``; everything below it is
 resolved per request by these providers.
 """
 
+from .auth import AuthServiceDep, BearerDep, LoginDep, PrincipalDep, authenticated, has_permission, has_role
+from .command import WriteSubmitterDep, build_write_handlers
 from .resources import ResourcesDep
 from .service import (
     DepartmentServiceDep,
@@ -23,73 +25,59 @@ from .service import (
     UserGroupServiceDep,
     UserServiceDep,
 )
-from .usercase import (
-    AppointDepartmentHeadDep,
-    AssignRoleMenusDep,
-    AssignUserRolesDep,
+from .usecase import (
     ChangePasswordDep,
     DepartmentCrudDep,
     DepartmentTreeDep,
     EmployeeCrudDep,
+    GetCommandOutcomeDep,
     GetConfigByKeyDep,
     GetUserAuthoritiesDep,
-    GrantRolePermissionsDep,
     GroupTreeDep,
     ListLogsDep,
     MenuCrudDep,
     MenuTreeDep,
-    MoveDepartmentDep,
-    MoveGroupDep,
-    MoveMenuDep,
     OnboardEmployeeDep,
     OrganizationCrudDep,
     PermissionCrudDep,
     ProjectCrudDep,
-    ProvisionOrganizationDep,
     RegisterUserDep,
-    ResignEmployeeDep,
     RoleCrudDep,
     SysConfigCrudDep,
     TenantCrudDep,
-    TransferEmployeeDep,
-    UpdateOrgDetailDep,
     UserCrudDep,
     UserGroupCrudDep,
 )
 
 __all__ = [
-    "AppointDepartmentHeadDep",
-    "AssignRoleMenusDep",
-    "AssignUserRolesDep",
+    "AuthServiceDep",
+    "BearerDep",
     "ChangePasswordDep",
     "DepartmentCrudDep",
     "DepartmentServiceDep",
     "DepartmentTreeDep",
     "EmployeeCrudDep",
     "EmployeeServiceDep",
+    "GetCommandOutcomeDep",
     "GetConfigByKeyDep",
     "GetUserAuthoritiesDep",
-    "GrantRolePermissionsDep",
     "GroupTreeDep",
     "ListLogsDep",
+    "LoginDep",
     "MenuCrudDep",
     "MenuServiceDep",
     "MenuTreeDep",
-    "MoveDepartmentDep",
-    "MoveGroupDep",
-    "MoveMenuDep",
     "OnboardEmployeeDep",
     "OnboardingServiceDep",
     "OrganizationCrudDep",
     "OrganizationServiceDep",
     "PermissionCrudDep",
     "PermissionServiceDep",
+    "PrincipalDep",
     "ProjectCrudDep",
     "ProjectServiceDep",
-    "ProvisionOrganizationDep",
     "ProvisioningServiceDep",
     "RegisterUserDep",
-    "ResignEmployeeDep",
     "ResourcesDep",
     "RoleCrudDep",
     "RoleServiceDep",
@@ -98,10 +86,13 @@ __all__ = [
     "SysLogServiceDep",
     "TenantCrudDep",
     "TenantServiceDep",
-    "TransferEmployeeDep",
-    "UpdateOrgDetailDep",
     "UserCrudDep",
     "UserGroupCrudDep",
     "UserGroupServiceDep",
     "UserServiceDep",
+    "WriteSubmitterDep",
+    "authenticated",
+    "build_write_handlers",
+    "has_permission",
+    "has_role",
 ]

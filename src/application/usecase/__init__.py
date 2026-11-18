@@ -1,4 +1,4 @@
-"""Usercases = curried functions (services first, request data last).
+"""Usecases = curried functions (services first, request data last).
 
 The presentation layer registers them through FastAPI ``Depends`` by partially applying services.
 """

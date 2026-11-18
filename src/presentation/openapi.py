@@ -25,11 +25,18 @@ DESCRIPTION = """
 请求体统一为 `{"requestId": "...", "reqInfo": {...}}`，
 响应体统一为 `{"code": 0, "msg": "success", "resultInfo": {...}}`；字段名一律 camelCase。资源所属组织与目标资源分别用 `reqInfo.orgUuid`、`reqInfo.uuid` 传递。
 
+### 异步写入
+`add` / `update` / `delete` 和专有写动作（授权、移动、调动、离职…）只负责受理：校验请求格式后发到 Kafka，立即返回
+`{"code": 0, "resultInfo": {"requestId": "...", "uuid": "...", "status": "accepted"}}`，由消费者异步入库。
+业务规则（重复编码、资源不存在…）在消费时才判断，结果用 `/log/get-by-request` 按 `requestId` 查询
+（`success` / `failed` / `pending`）。新增时返回的 `uuid` 就是新实体的 uuid。
+用户注册、修改密码、员工入职（带明文密码）仍是同步接口，直接返回结果。
+
 ### 请求头
 | Header | 说明 |
 |---|---|
-| `Authorization` | `Bearer <virtual-key>`（预留，当前不校验） |
-| `X-Operator` | 操作人，写入审计字段 `opr`（接入认证后由登录主体替代），缺省 `anonymous` |
+| `Authorization` | `Bearer <token>`（`POST /auth/login` 获取；受保护接口必填，缺失或失效返回 `code` 401） |
+| `X-Operator` | 操作人，写入审计字段 `opr`；仅在 `AUTH_ENABLED=false` 时使用，开启认证后操作人就是登录用户 |
 | `X-Request-Id` | 链路追踪 id，原样回显在响应头；缺省自动生成 |
 
 ### 错误
@@ -40,7 +47,8 @@ DESCRIPTION = """
 |---|---|
 | 0 | 成功 |
 | 400 | validation — 业务校验失败，或请求体格式错误（`errorCode` = `invalid_request`） |
-| 403 | forbidden — 无权限 |
+| 401 | unauthenticated — 未登录或 token 失效（`errorCode` = `unauthenticated` / `invalid_credentials`） |
+| 403 | forbidden — 无权限（`permission_denied` / `role_denied`），或操作了不属于自己的组织（`org_mismatch`） |
 | 404 | not_found — 资源不存在 |
 | 409 | conflict — 状态冲突（如重复编码、删除系统角色） |
 | 502 | 依赖的上游服务调用失败（HTTP 502） |
@@ -53,6 +61,7 @@ DESCRIPTION = """
 
 OPENAPI_TAGS: list[dict[str, Any]] = [
     {"name": "health", "description": "健康检查：主从数据源连通性"},
+    {"name": "auth", "description": "登录、登出、当前身份（Bearer token）"},
     {"name": "organization", "description": "组织：开通（组织 + 默认租户 + 管理员角色 + 默认配置）与维护"},
     {"name": "tenant", "description": "租户"},
     {"name": "user", "description": "用户：注册、角色分配、改密、查询权限"},
@@ -78,9 +87,10 @@ SWAGGER_UI_PARAMETERS: dict[str, Any] = {
 
 
 async def context_headers(
-    x_operator: Annotated[str | None, Header(description="操作人（写入 opr），缺省 anonymous")] = None,
+    x_operator: Annotated[
+        str | None, Header(description="操作人（写入 opr）；仅在 AUTH_ENABLED=false 时生效，缺省 anonymous")
+    ] = None,
     x_request_id: Annotated[str | None, Header(description="链路追踪 id，回显在响应头")] = None,
-    authorization: Annotated[str | None, Header(description="Bearer <virtual-key>（预留，当前不校验）")] = None,
 ) -> None:
     """Documents the headers read by ``install_context_middleware`` so Swagger UI can send them."""
 
