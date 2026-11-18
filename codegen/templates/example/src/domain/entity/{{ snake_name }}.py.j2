@@ -1,0 +1,23 @@
+{# Example template only: shows the mechanics. Replace it with your own meta templates. #}
+"""{{ class_name }} ({{ module.comment }})."""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+{% if fields | selectattr("type", "equalto", "Code") | list %}
+from ..vo import Code
+{% endif %}
+from .base import AggregateRoot
+
+
+@dataclass(frozen=True, kw_only=True)
+class {{ class_name }}(AggregateRoot):
+    {{ snake_name }}_uuid: str
+{% for f in fields %}
+    {{ f.name }}: {{ f.type }}{{ "" if f.required else " | None = None" }}  # {{ f.comment }}
+{% endfor %}
+
+    @property
+    def uuid(self) -> str:
+        return self.{{ snake_name }}_uuid

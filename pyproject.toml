@@ -1,0 +1,92 @@
+[project]
+name = "hiaok"
+version = "0.1.0"
+description = "Lightweight permission center - DDD, event-driven, read/write split"
+readme = "README.md"
+authors = [
+    { name = "jacklasofo", email = "125986898+jacklasofo@users.noreply.github.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "hiaok-core",
+    "aiokafka>=0.15.0",
+    "alembic>=1.20.1",
+    "anyio>=4.16.0",
+    "asyncpg>=0.32.0",
+    "dependency-injector>=4.49.1",
+    "expression>=6.0.1",
+    "fastapi[standard]>=0.163.1",
+    "httpx>=0.28.1",
+    "pydantic>=2.14.3",
+    "pydantic-settings>=2.16.3",
+    "redis>=8.1.0",
+    "sqlalchemy[asyncio]>=2.1.9",
+    "toolz>=1.2.0",
+    "uvicorn>=0.54.0",
+]
+
+[project.scripts]
+hiaok = "src:main"
+
+[build-system]
+requires = ["uv_build>=0.13.8,<0.14.0"]
+build-backend = "uv_build"
+
+# the importable package is ./src itself (no src/hiaok/ layer). Inside the package imports are relative
+# (`from ..domain import ...`); tests / scripts / alembic / entry points use `src.` absolutely.
+[tool.uv.build-backend]
+module-name = "src"
+module-root = ""
+
+[tool.uv.sources]
+# separate repository, pinned to a release tag; upgrade: change the tag, then `uv lock --upgrade-package hiaok-core`
+hiaok-core = { git = "https://github.com/solomanpan/hiaok-core", tag = "v0.1.0" }
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "jinja2>=3.1.6",  # codegen only (scripts/codegen.py), not a runtime dependency
+    "pyright>=1.1.414",
+    "pytest>=9.2.0",
+    "pytest-asyncio>=1.5.0",
+    "ruff>=0.17.5",
+]
+
+# ---------------------------------------------------------------- alembic (no alembic.ini needed)
+[tool.alembic]
+# package resource => works from the source tree and from the installed wheel (Docker image)
+script_location = "src.infrastructure:migrations"
+file_template = "%%(year)d%%(month).2d%%(day).2d_%%(rev)s_%%(slug)s"
+
+# ---------------------------------------------------------------- tooling
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["tests"]  # `from support import ok, err`
+addopts = ["-ra", "--strict-markers", "--strict-config", "--import-mode=importlib"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "integration: needs real services (docker compose up -d); auto-skipped when unreachable",
+]
+filterwarnings = ["error::pytest.PytestUnraisableExceptionWarning"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC", "SIM", "RUF"]
+ignore = ["B008", "RUF012"]
+
+[tool.ruff.lint.per-file-ignores]
+# Chinese API docs legitimately use full-width punctuation
+"src/presentation/openapi.py" = ["RUF001"]
+"scripts/gen_db_doc.py" = ["RUF001"]
+
+[tool.pyright]
+include = ["src", "tests", "scripts"]
+exclude = ["codegen/templates"]
+extraPaths = ["tests"]
+reportDeprecated = "warning"  # same strike-through VS Code / Pylance shows
+pythonVersion = "3.12"
+typeCheckingMode = "standard"

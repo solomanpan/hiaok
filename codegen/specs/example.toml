@@ -1,0 +1,27 @@
+# Module spec: the whole document is the template context.
+# `[module] name` also derives: class_name (Pascal), snake_name, kebab_name, plural_name.
+template = "example"            # template set: codegen/templates/example/
+
+[module]
+name = "sample_item"            # -> class_name = "SampleItem", snake_name = "sample_item", plural_name = "sample_items"
+table = "sample_item"
+comment = "サンプルテーブル"
+
+[[fields]]
+name = "item_code"
+type = "Code"                   # free-form: templates decide how a type is rendered
+required = true
+comment = "コード"
+
+[[fields]]
+name = "item_name"
+type = "str"
+required = true
+max_length = 128
+comment = "名称"
+
+[[fields]]
+name = "owner_user_uuid"
+type = "str"
+required = false
+comment = "オーナーユーザーUUID"
