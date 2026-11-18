@@ -2,14 +2,14 @@ from __future__ import annotations
 
 from datetime import date
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import EmailStr, Field
 
 from ...application.model import CreateEmployee, EmployeeModel, OnboardEmployee, UpdateEmployee
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest
+from .common import ApiModel, EntityResponse, Keyed, MetaRequest, MetaUpdateRequest, OrgScoped
 from .user import UserResponse
 
 
-class AccountRequest(BaseModel):
+class AccountRequest(ApiModel):
     """Optional: open a login user for the new employee in the same transaction."""
 
     tenant_uuid: str
@@ -18,7 +18,7 @@ class AccountRequest(BaseModel):
     role_uuids: list[str] = Field(default_factory=list)
 
 
-class EmployeeOnboardRequest(MetaRequest):
+class EmployeeOnboardRequest(OrgScoped, MetaRequest):
     employee_no: str = Field(..., examples=["E0001"])
     employee_name: str
     department_uuid: str | None = None
@@ -28,8 +28,8 @@ class EmployeeOnboardRequest(MetaRequest):
     hire_date: date | None = None
     account: AccountRequest | None = None
 
-    def to_command(self, org_uuid: str) -> OnboardEmployee:
-        employee = CreateEmployee(org_uuid=org_uuid, **self.model_dump(exclude={"account"}))
+    def to_command(self) -> OnboardEmployee:
+        employee = CreateEmployee(**self.model_dump(exclude={"account"}))
         if self.account is None:
             return OnboardEmployee(employee=employee)
         return OnboardEmployee(
@@ -41,21 +41,21 @@ class EmployeeOnboardRequest(MetaRequest):
         )
 
 
-class EmployeeUpdateRequest(MetaUpdateRequest):
+class EmployeeUpdateRequest(Keyed, MetaUpdateRequest):
     employee_name: str | None = None
     email: EmailStr | None = None
     phone: str | None = None
     position: str | None = None
 
     def to_command(self) -> UpdateEmployee:
-        return UpdateEmployee(**self.model_dump())
+        return UpdateEmployee(**self.patch())
 
 
-class TransferRequest(BaseModel):
+class TransferRequest(Keyed):
     department_uuid: str
 
 
-class ResignRequest(BaseModel):
+class ResignRequest(Keyed):
     leave_date: date
 
 
@@ -76,6 +76,6 @@ class EmployeeResponse(EntityResponse):
         return cls.model_validate(m)
 
 
-class OnboardResponse(BaseModel):
+class OnboardResponse(ApiModel):
     employee: EmployeeResponse
     user: UserResponse | None = None

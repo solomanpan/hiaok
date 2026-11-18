@@ -1,15 +1,19 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter
 
-from ..dependency import ListLogsDep, PageDep
+from ..dependency import ListLogsDep
 from ..schema.common import PageResponse
-from ..schema.sys_log import SysLogResponse
+from ..schema.envelope import ApiRequest, ApiResponse
+from ..schema.sys_log import SysLogListRequest, SysLogResponse
 
-router = APIRouter(prefix="/orgs/{org_uuid}/logs", tags=["sys_log"])
+router = APIRouter(prefix="/log", tags=["sys_log"])
 
 
-@router.get("")
+@router.post("/list")
 async def list_logs(
-    org_uuid: str, page: PageDep, uc: ListLogsDep, event_type: str | None = Query(None)
-) -> PageResponse[SysLogResponse]:
+    request: ApiRequest[SysLogListRequest], usercase: ListLogsDep
+) -> ApiResponse[PageResponse[SysLogResponse]]:
     """Audit trail written asynchronously by the event consumer (newest first)."""
-    return PageResponse.of(await uc(org_uuid, page, event_type), SysLogResponse.of)
+    info = request.req_info
+    return ApiResponse.ok(
+        PageResponse.of(await usercase(info.org_uuid, info.query, info.event_type), SysLogResponse.of)
+    )

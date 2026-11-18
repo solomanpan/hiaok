@@ -1,69 +1,84 @@
-from fastapi import APIRouter, Query, status
+from fastapi import APIRouter
 
 from ..dependency import (
     AssignUserRolesDep,
     ChangePasswordDep,
     GetUserAuthoritiesDep,
-    PageDep,
     RegisterUserDep,
     UserCrudDep,
 )
-from ..exception import unwrap
-from ..schema.common import PageResponse
+from ..schema.common import Keyed, OrgPageRequest, PageResponse
+from ..schema.envelope import ApiRequest, ApiResponse, done, reply
 from ..schema.user import (
     AssignRolesRequest,
     AuthorityResponse,
     ChangePasswordRequest,
+    UserAuthoritiesRequest,
     UserRegisterRequest,
     UserResponse,
     UserUpdateRequest,
 )
 
-router = APIRouter(prefix="/orgs/{org_uuid}/users", tags=["user"])
+router = APIRouter(prefix="/user", tags=["user"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def register_user(org_uuid: str, body: UserRegisterRequest, uc: RegisterUserDep) -> UserResponse:
-    """Password policy -> tenant active -> roles exist in the tenant -> hash -> user + user_detail + user_role."""
-    return unwrap(await uc(body.to_command(org_uuid)), UserResponse.of)
+@router.post("/register")
+async def register_user(
+    request: ApiRequest[UserRegisterRequest], usercase: RegisterUserDep
+) -> ApiResponse[UserResponse]:
+    return reply(await usercase(request.req_info.to_command()), UserResponse.of)
 
 
-@router.get("")
-async def list_users(org_uuid: str, page: PageDep, uc: UserCrudDep) -> PageResponse[UserResponse]:
-    return PageResponse.of(await uc.list(org_uuid, page), UserResponse.of)
+@router.post("/list")
+async def list_users(
+    request: ApiRequest[OrgPageRequest], usercase: UserCrudDep
+) -> ApiResponse[PageResponse[UserResponse]]:
+    info = request.req_info
+    return ApiResponse.ok(PageResponse.of(await usercase.list(info.org_uuid, info.query), UserResponse.of))
 
 
-@router.get("/{user_uuid}")
-async def get_user(org_uuid: str, user_uuid: str, uc: UserCrudDep) -> UserResponse:
-    return unwrap(await uc.get(org_uuid, user_uuid), UserResponse.of)
+@router.post("/get")
+async def get_user(request: ApiRequest[Keyed], usercase: UserCrudDep) -> ApiResponse[UserResponse]:
+    info = request.req_info
+    return reply(await usercase.get(info.org_uuid, info.uuid), UserResponse.of)
 
 
-@router.patch("/{user_uuid}")
-async def update_user(org_uuid: str, user_uuid: str, body: UserUpdateRequest, uc: UserCrudDep) -> UserResponse:
-    return unwrap(await uc.update(org_uuid, user_uuid, body.to_command()), UserResponse.of)
+@router.post("/update")
+async def update_user(request: ApiRequest[UserUpdateRequest], usercase: UserCrudDep) -> ApiResponse[UserResponse]:
+    info = request.req_info
+    return reply(await usercase.update(info.org_uuid, info.uuid, info.to_command()), UserResponse.of)
 
 
-@router.delete("/{user_uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_user(org_uuid: str, user_uuid: str, uc: UserCrudDep) -> None:
-    unwrap(await uc.delete(org_uuid, user_uuid), lambda _: None)
+@router.post("/delete")
+async def delete_user(request: ApiRequest[Keyed], usercase: UserCrudDep) -> ApiResponse[None]:
+    info = request.req_info
+    return done(await usercase.delete(info.org_uuid, info.uuid))
 
 
-@router.put("/{user_uuid}/roles")
-async def assign_roles(org_uuid: str, user_uuid: str, body: AssignRolesRequest, uc: AssignUserRolesDep) -> UserResponse:
-    return unwrap(await uc(org_uuid, user_uuid, [r.to_model() for r in body.roles]), UserResponse.of)
+@router.post("/assign-roles")
+async def assign_roles(
+    request: ApiRequest[AssignRolesRequest], usercase: AssignUserRolesDep
+) -> ApiResponse[UserResponse]:
+    info = request.req_info
+    return reply(
+        await usercase(info.org_uuid, info.uuid, [role.to_model() for role in info.roles]),
+        UserResponse.of,
+    )
 
 
-@router.put("/{user_uuid}/password", status_code=status.HTTP_204_NO_CONTENT)
-async def change_password(org_uuid: str, user_uuid: str, body: ChangePasswordRequest, uc: ChangePasswordDep) -> None:
-    unwrap(await uc(org_uuid, user_uuid, body.new_password), lambda _: None)
+@router.post("/change-password")
+async def change_password(request: ApiRequest[ChangePasswordRequest], usercase: ChangePasswordDep) -> ApiResponse[None]:
+    info = request.req_info
+    return done(await usercase(info.org_uuid, info.uuid, info.new_password))
 
 
-@router.get("/{user_uuid}/authorities")
+@router.post("/authorities")
 async def user_authorities(
-    org_uuid: str,
-    user_uuid: str,
-    uc: GetUserAuthoritiesDep,
-    project_uuid: str | None = Query(None, description="include roles granted inside this project"),
-) -> AuthorityResponse:
+    request: ApiRequest[UserAuthoritiesRequest], usercase: GetUserAuthoritiesDep
+) -> ApiResponse[AuthorityResponse]:
     """Effective role codes, permission codes and menu tree (union over enabled roles)."""
-    return unwrap(await uc(org_uuid, user_uuid, project_uuid), AuthorityResponse.of)
+    info = request.req_info
+    return reply(
+        await usercase(info.org_uuid, info.uuid, info.project_uuid),
+        AuthorityResponse.of,
+    )

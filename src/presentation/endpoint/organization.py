@@ -1,46 +1,58 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
-from ..dependency import OrganizationCrudDep, PageDep, ProvisionOrganizationDep, UpdateOrgDetailDep
-from ..exception import unwrap
-from ..schema.common import PageResponse
+from ..dependency import OrganizationCrudDep, ProvisionOrganizationDep, UpdateOrgDetailDep
+from ..schema.common import OrgScoped, PageRequest, PageResponse
+from ..schema.envelope import ApiRequest, ApiResponse, done, reply
 from ..schema.organization import (
     OrganizationCreateRequest,
     OrganizationResponse,
     OrganizationUpdateRequest,
-    OrgDetailDTO,
+    OrgDetailUpdateRequest,
 )
 
-router = APIRouter(prefix="/orgs", tags=["organization"])
+router = APIRouter(prefix="/organization", tags=["organization"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def provision_organization(body: OrganizationCreateRequest, uc: ProvisionOrganizationDep) -> OrganizationResponse:
+@router.post("/add")
+async def provision_organization(
+    request: ApiRequest[OrganizationCreateRequest], usercase: ProvisionOrganizationDep
+) -> ApiResponse[OrganizationResponse]:
     """Creates the organization + detail + default tenant + ORG_ADMIN role + default configs atomically."""
-    return unwrap(await uc(body.to_command()), OrganizationResponse.of)
+    return reply(await usercase(request.req_info.to_command()), OrganizationResponse.of)
 
 
-@router.get("")
-async def list_organizations(page: PageDep, uc: OrganizationCrudDep) -> PageResponse[OrganizationResponse]:
-    return PageResponse.of(await uc.list(None, page), OrganizationResponse.of)
+@router.post("/list")
+async def list_organizations(
+    request: ApiRequest[PageRequest], usercase: OrganizationCrudDep
+) -> ApiResponse[PageResponse[OrganizationResponse]]:
+    return ApiResponse.ok(PageResponse.of(await usercase.list(None, request.req_info.query), OrganizationResponse.of))
 
 
-@router.get("/{org_uuid}")
-async def get_organization(org_uuid: str, uc: OrganizationCrudDep) -> OrganizationResponse:
-    return unwrap(await uc.get(org_uuid, org_uuid), OrganizationResponse.of)
+@router.post("/get")
+async def get_organization(
+    request: ApiRequest[OrgScoped], usercase: OrganizationCrudDep
+) -> ApiResponse[OrganizationResponse]:
+    org = request.req_info.org_uuid
+    return reply(await usercase.get(org, org), OrganizationResponse.of)
 
 
-@router.patch("/{org_uuid}")
+@router.post("/update")
 async def update_organization(
-    org_uuid: str, body: OrganizationUpdateRequest, uc: OrganizationCrudDep
-) -> OrganizationResponse:
-    return unwrap(await uc.update(org_uuid, org_uuid, body.to_command()), OrganizationResponse.of)
+    request: ApiRequest[OrganizationUpdateRequest], usercase: OrganizationCrudDep
+) -> ApiResponse[OrganizationResponse]:
+    info = request.req_info
+    return reply(await usercase.update(info.org_uuid, info.org_uuid, info.to_command()), OrganizationResponse.of)
 
 
-@router.put("/{org_uuid}/detail")
-async def update_org_detail(org_uuid: str, body: OrgDetailDTO, uc: UpdateOrgDetailDep) -> OrganizationResponse:
-    return unwrap(await uc(org_uuid, body.to_model()), OrganizationResponse.of)
+@router.post("/update-detail")
+async def update_org_detail(
+    request: ApiRequest[OrgDetailUpdateRequest], usercase: UpdateOrgDetailDep
+) -> ApiResponse[OrganizationResponse]:
+    info = request.req_info
+    return reply(await usercase(info.org_uuid, info.to_model()), OrganizationResponse.of)
 
 
-@router.delete("/{org_uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_organization(org_uuid: str, uc: OrganizationCrudDep) -> None:
-    unwrap(await uc.delete(org_uuid, org_uuid), lambda _: None)
+@router.post("/delete")
+async def delete_organization(request: ApiRequest[OrgScoped], usercase: OrganizationCrudDep) -> ApiResponse[None]:
+    org = request.req_info.org_uuid
+    return done(await usercase.delete(org, org))

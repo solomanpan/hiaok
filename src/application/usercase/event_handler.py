@@ -1,4 +1,4 @@
-"""Event-driven use cases (consumers). Brokers deliver at-least-once -> handlers must be idempotent."""
+"""Event-driven usercases (consumers). Brokers deliver at-least-once -> handlers must be idempotent."""
 
 from __future__ import annotations
 

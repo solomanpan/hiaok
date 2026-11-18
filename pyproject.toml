@@ -40,12 +40,13 @@ module-root = ""
 
 [tool.uv.sources]
 # separate repository, pinned to a release tag; upgrade: change the tag, then `uv lock --upgrade-package hiaok-core`
-hiaok-core = { git = "https://github.com/solomanpan/hiaok-core", tag = "v0.1.0" }
+hiaok-core = { git = "https://github.com/solomanpan/hiaok-core", tag = "v0.2.0" }
 
 [dependency-groups]
 dev = [
     "httpx>=0.28.1",
     "jinja2>=3.1.6",  # codegen only (scripts/codegen.py), not a runtime dependency
+    "polyfactory>=2.22.0",  # test data factories (tests/factories.py)
     "pyright>=1.1.414",
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",
@@ -80,7 +81,7 @@ ignore = ["B008", "RUF012"]
 
 [tool.ruff.lint.per-file-ignores]
 # Chinese API docs legitimately use full-width punctuation
-"src/presentation/openapi.py" = ["RUF001"]
+"src/presentation/openapi.py" = ["RUF001", "E501"]
 "scripts/gen_db_doc.py" = ["RUF001"]
 
 [tool.pyright]

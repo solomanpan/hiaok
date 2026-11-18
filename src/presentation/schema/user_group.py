@@ -3,26 +3,26 @@ from __future__ import annotations
 from pydantic import Field
 
 from ...application.model import CreateUserGroup, UpdateUserGroup, UserGroupModel
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest
+from .common import EntityResponse, Keyed, MetaRequest, MetaUpdateRequest, OrgScoped
 
 
-class UserGroupCreateRequest(MetaRequest):
+class UserGroupCreateRequest(OrgScoped, MetaRequest):
     tenant_uuid: str
     group_code: str
     group_name: str
     parent_group_uuid: str | None = None
     sort_order: int = Field(default=0, ge=0)
 
-    def to_command(self, org_uuid: str) -> CreateUserGroup:
-        return CreateUserGroup(org_uuid=org_uuid, **self.model_dump())
+    def to_command(self) -> CreateUserGroup:
+        return CreateUserGroup(**self.model_dump())
 
 
-class UserGroupUpdateRequest(MetaUpdateRequest):
+class UserGroupUpdateRequest(Keyed, MetaUpdateRequest):
     group_name: str | None = None
     sort_order: int | None = Field(default=None, ge=0)
 
     def to_command(self) -> UpdateUserGroup:
-        return UpdateUserGroup(**self.model_dump())
+        return UpdateUserGroup(**self.patch())
 
 
 class UserGroupResponse(EntityResponse):

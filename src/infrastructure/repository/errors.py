@@ -4,12 +4,17 @@ from __future__ import annotations
 
 from functools import cache
 
-from hiaok_core.exception import DomainError, conflict
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 from sqlalchemy.exc import IntegrityError
 
 from ..database import Base
 
 _UNIQUE_VIOLATION = "23505"
+
+
+class RepositoryErrors(ErrorCatalog):
+    duplicate = ErrorSpec.conflict("duplicate_{columns}", "{what} already exists ({constraint})")
 
 
 @cache
@@ -29,4 +34,4 @@ def integrity_to_domain(exc: IntegrityError) -> DomainError | None:
     name = str(getattr(cause, "constraint_name", "") or "")
     columns = _unique_columns().get(name, ())
     what = ", ".join(columns) or "value"
-    return conflict(f"duplicate_{'_'.join(columns) or 'value'}", f"{what} already exists ({name})")
+    return RepositoryErrors.duplicate(columns="_".join(columns) or "value", what=what, constraint=name)

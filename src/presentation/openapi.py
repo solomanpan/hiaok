@@ -10,9 +10,6 @@ from typing import Annotated, Any
 
 from fastapi import Header
 from fastapi.routing import APIRoute
-from pydantic import BaseModel
-
-from .schema.common import ErrorResponse
 
 try:
     API_VERSION = version("hiaok")
@@ -22,24 +19,36 @@ except PackageNotFoundError:  # running from a source tree that is not installed
 DESCRIPTION = """
 轻量级权限中心（DDD · 事件驱动 · 读写分离）。
 
+### 接口规范
+所有业务接口均为 `POST /v1/api/hiaok/<资源>/<动作>`（动作：`add` / `list` / `get` / `update` / `delete` 及各资源的专有动作）。
+
+请求体统一为 `{"requestId": "...", "reqInfo": {...}}`，
+响应体统一为 `{"code": 0, "msg": "success", "resultInfo": {...}}`；字段名一律 camelCase。资源所属组织与目标资源分别用 `reqInfo.orgUuid`、`reqInfo.uuid` 传递。
+
 ### 请求头
 | Header | 说明 |
 |---|---|
+| `Authorization` | `Bearer <virtual-key>`（预留，当前不校验） |
 | `X-Operator` | 操作人，写入审计字段 `opr`（接入认证后由登录主体替代），缺省 `anonymous` |
 | `X-Request-Id` | 链路追踪 id，原样回显在响应头；缺省自动生成 |
 
-### 错误格式
-领域错误统一返回 `{"detail": {"code": "...", "message": "..."}}`：
+### 错误
+可预期的错误一律 HTTP 200，通过 `code` / `msg` 表达，`resultInfo` 为 `null`，
+并附带细分的 `errorCode`（如 `role_not_found`）：
 
-| 状态码 | 含义 |
+| code | 含义 |
 |---|---|
+| 0 | 成功 |
+| 400 | validation — 业务校验失败，或请求体格式错误（`errorCode` = `invalid_request`） |
 | 403 | forbidden — 无权限 |
-| 404 | not_found — 资源不存在（code 形如 `role_not_found`） |
+| 404 | not_found — 资源不存在 |
 | 409 | conflict — 状态冲突（如重复编码、删除系统角色） |
-| 422 | validation — 业务校验失败；请求体格式错误时为 FastAPI 标准校验结构 |
+| 502 | 依赖的上游服务调用失败（HTTP 502） |
+| 500 | 未预期的系统错误（HTTP 500，细节只写日志） |
 
 ### 分页
-列表接口使用 `offset`（默认 0）/ `limit`（默认 20，最大 200），返回 `items / total / offset / limit`。
+列表接口在 `reqInfo` 里传 `offset`（默认 0）/ `limit`（默认 20，最大 200），
+`resultInfo` 为 `items / total / offset / limit`。
 """
 
 OPENAPI_TAGS: list[dict[str, Any]] = [
@@ -68,28 +77,10 @@ SWAGGER_UI_PARAMETERS: dict[str, Any] = {
 }
 
 
-class ErrorEnvelope(BaseModel):
-    """Shape produced by ``errors.unwrap`` (``HTTPException(detail={code, message})``)."""
-
-    detail: ErrorResponse
-
-
-def _error(description: str) -> dict[str, Any]:
-    return {"model": ErrorEnvelope, "description": description}
-
-
-# 422 is deliberately not listed: FastAPI only documents its request-validation schema when the
-# route does not declare 422 itself, and that schema is the more useful one to show.
-ERROR_RESPONSES: dict[int | str, dict[str, Any]] = {
-    403: _error("Forbidden"),
-    404: _error("Not found"),
-    409: _error("Conflict"),
-}
-
-
 async def context_headers(
     x_operator: Annotated[str | None, Header(description="操作人（写入 opr），缺省 anonymous")] = None,
     x_request_id: Annotated[str | None, Header(description="链路追踪 id，回显在响应头")] = None,
+    authorization: Annotated[str | None, Header(description="Bearer <virtual-key>（预留，当前不校验）")] = None,
 ) -> None:
     """Documents the headers read by ``install_context_middleware`` so Swagger UI can send them."""
 

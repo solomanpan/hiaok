@@ -1,25 +1,25 @@
 from __future__ import annotations
 
 from ...application.model import CreateProject, ProjectModel, UpdateProject
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest
+from .common import EntityResponse, Keyed, MetaRequest, MetaUpdateRequest, OrgScoped
 
 
-class ProjectCreateRequest(MetaRequest):
+class ProjectCreateRequest(OrgScoped, MetaRequest):
     tenant_uuid: str
     project_code: str
     project_name: str
     owner_user_uuid: str | None = None
 
-    def to_command(self, org_uuid: str) -> CreateProject:
-        return CreateProject(org_uuid=org_uuid, **self.model_dump())
+    def to_command(self) -> CreateProject:
+        return CreateProject(**self.model_dump())
 
 
-class ProjectUpdateRequest(MetaUpdateRequest):
+class ProjectUpdateRequest(Keyed, MetaUpdateRequest):
     project_name: str | None = None
     owner_user_uuid: str | None = None
 
     def to_command(self) -> UpdateProject:
-        return UpdateProject(**self.model_dump())
+        return UpdateProject(**self.patch())
 
 
 class ProjectResponse(EntityResponse):

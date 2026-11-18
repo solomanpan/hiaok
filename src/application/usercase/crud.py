@@ -1,7 +1,7 @@
-"""Generic CRUD use cases: curried (service, to_model) first, request data last.
+"""Generic CRUD usercases: curried (service, to_model) first, request data last.
 
-uc = crud_usecases(tenant_service, TenantModel.from_domain)   # partial application
-await uc.create(CreateTenant(...))                            # -> Result[TenantModel, DomainError]
+usercase = crud_usercases(tenant_service, TenantModel.from_domain)   # partial application
+await usercase.create(CreateTenant(...))                            # -> Result[TenantModel, DomainError]
 """
 
 from __future__ import annotations
@@ -50,7 +50,7 @@ def delete_entity(service: CrudService[Any], org_uuid: str, uuid: str):
 
 
 @dataclass(frozen=True)
-class CrudUseCases[M, C, U]:
+class CrudUserCases[M, C, U]:
     create: Callable[[C], Awaitable[Result[M, DomainError]]]
     get: Callable[[str, str], Awaitable[Result[M, DomainError]]]
     list: Callable[[str | None, PageQuery], Awaitable[Page[M]]]
@@ -58,10 +58,10 @@ class CrudUseCases[M, C, U]:
     delete: Callable[[str, str], Awaitable[Result[None, DomainError]]]
 
 
-def crud_usecases[A: AggregateRoot, M](
+def crud_usercases[A: AggregateRoot, M](
     service: CrudService[A], to_model: Callable[[A], M]
-) -> CrudUseCases[M, CreateCommand[A], UpdateCommand[A]]:
-    return CrudUseCases(
+) -> CrudUserCases[M, CreateCommand[A], UpdateCommand[A]]:
+    return CrudUserCases(
         create=create_entity(service, to_model),
         get=get_entity(service, to_model),
         list=list_entities(service, to_model),

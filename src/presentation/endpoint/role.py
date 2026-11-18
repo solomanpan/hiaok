@@ -1,8 +1,8 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
-from ..dependency import AssignRoleMenusDep, GrantRolePermissionsDep, PageDep, RoleCrudDep
-from ..exception import unwrap
-from ..schema.common import PageResponse
+from ..dependency import AssignRoleMenusDep, GrantRolePermissionsDep, RoleCrudDep
+from ..schema.common import Keyed, OrgPageRequest, PageResponse
+from ..schema.envelope import ApiRequest, ApiResponse, done, reply
 from ..schema.role import (
     AssignMenusRequest,
     GrantPermissionsRequest,
@@ -11,44 +11,52 @@ from ..schema.role import (
     RoleUpdateRequest,
 )
 
-router = APIRouter(prefix="/orgs/{org_uuid}/roles", tags=["role"])
+router = APIRouter(prefix="/role", tags=["role"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def create_role(org_uuid: str, body: RoleCreateRequest, uc: RoleCrudDep) -> RoleResponse:
-    return unwrap(await uc.create(body.to_command(org_uuid)), RoleResponse.of)
+@router.post("/add")
+async def create_role(request: ApiRequest[RoleCreateRequest], usercase: RoleCrudDep) -> ApiResponse[RoleResponse]:
+    return reply(await usercase.create(request.req_info.to_command()), RoleResponse.of)
 
 
-@router.get("")
-async def list_roles(org_uuid: str, page: PageDep, uc: RoleCrudDep) -> PageResponse[RoleResponse]:
-    return PageResponse.of(await uc.list(org_uuid, page), RoleResponse.of)
+@router.post("/list")
+async def list_roles(
+    request: ApiRequest[OrgPageRequest], usercase: RoleCrudDep
+) -> ApiResponse[PageResponse[RoleResponse]]:
+    info = request.req_info
+    return ApiResponse.ok(PageResponse.of(await usercase.list(info.org_uuid, info.query), RoleResponse.of))
 
 
-@router.get("/{role_uuid}")
-async def get_role(org_uuid: str, role_uuid: str, uc: RoleCrudDep) -> RoleResponse:
-    return unwrap(await uc.get(org_uuid, role_uuid), RoleResponse.of)
+@router.post("/get")
+async def get_role(request: ApiRequest[Keyed], usercase: RoleCrudDep) -> ApiResponse[RoleResponse]:
+    info = request.req_info
+    return reply(await usercase.get(info.org_uuid, info.uuid), RoleResponse.of)
 
 
-@router.patch("/{role_uuid}")
-async def update_role(org_uuid: str, role_uuid: str, body: RoleUpdateRequest, uc: RoleCrudDep) -> RoleResponse:
-    return unwrap(await uc.update(org_uuid, role_uuid, body.to_command()), RoleResponse.of)
+@router.post("/update")
+async def update_role(request: ApiRequest[RoleUpdateRequest], usercase: RoleCrudDep) -> ApiResponse[RoleResponse]:
+    info = request.req_info
+    return reply(await usercase.update(info.org_uuid, info.uuid, info.to_command()), RoleResponse.of)
 
 
-@router.delete("/{role_uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_role(org_uuid: str, role_uuid: str, uc: RoleCrudDep) -> None:
-    unwrap(await uc.delete(org_uuid, role_uuid), lambda _: None)
+@router.post("/delete")
+async def delete_role(request: ApiRequest[Keyed], usercase: RoleCrudDep) -> ApiResponse[None]:
+    info = request.req_info
+    return done(await usercase.delete(info.org_uuid, info.uuid))
 
 
-@router.put("/{role_uuid}/permissions")
+@router.post("/grant-permissions")
 async def grant_role_permissions(
-    org_uuid: str, role_uuid: str, body: GrantPermissionsRequest, uc: GrantRolePermissionsDep
-) -> RoleResponse:
+    request: ApiRequest[GrantPermissionsRequest], usercase: GrantRolePermissionsDep
+) -> ApiResponse[RoleResponse]:
     """Replaces the role's permission set (role_permission rows are diffed, removed ones soft-deleted)."""
-    return unwrap(await uc(org_uuid, role_uuid, body.permission_uuids), RoleResponse.of)
+    info = request.req_info
+    return reply(await usercase(info.org_uuid, info.uuid, info.permission_uuids), RoleResponse.of)
 
 
-@router.put("/{role_uuid}/menus")
+@router.post("/assign-menus")
 async def assign_role_menus(
-    org_uuid: str, role_uuid: str, body: AssignMenusRequest, uc: AssignRoleMenusDep
-) -> RoleResponse:
-    return unwrap(await uc(org_uuid, role_uuid, body.menu_uuids), RoleResponse.of)
+    request: ApiRequest[AssignMenusRequest], usercase: AssignRoleMenusDep
+) -> ApiResponse[RoleResponse]:
+    info = request.req_info
+    return reply(await usercase(info.org_uuid, info.uuid, info.menu_uuids), RoleResponse.of)

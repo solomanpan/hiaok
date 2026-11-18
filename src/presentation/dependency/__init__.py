@@ -1,15 +1,12 @@
 """Dependency injection (FastAPI ``Depends``).
 
-    resources (app.state) -> repository -> service (@master/@slave) -> use case
+    resources (app.state) -> repository -> service (@master/@slave) -> usercase
 
-Endpoints only declare the use case they need, e.g. ``uc: RegisterUserDep``; everything below it is
+Endpoints only declare the usercase they need, e.g. ``usercase: RegisterUserDep``; everything below it is
 resolved per request by these providers.
 """
 
-from .resources import (
-    PageDep,
-    ResourcesDep,
-)
+from .resources import ResourcesDep
 from .service import (
     DepartmentServiceDep,
     EmployeeServiceDep,
@@ -26,7 +23,7 @@ from .service import (
     UserGroupServiceDep,
     UserServiceDep,
 )
-from .usecase import (
+from .usercase import (
     AppointDepartmentHeadDep,
     AssignRoleMenusDep,
     AssignUserRolesDep,
@@ -85,7 +82,6 @@ __all__ = [
     "OnboardingServiceDep",
     "OrganizationCrudDep",
     "OrganizationServiceDep",
-    "PageDep",
     "PermissionCrudDep",
     "PermissionServiceDep",
     "ProjectCrudDep",

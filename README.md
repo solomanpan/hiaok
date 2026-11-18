@@ -29,7 +29,7 @@ hiaok/                                                   # 项目根
    │  ├─ config/          # app / database(主从) / redis / kafka 配置
    │  ├─ model/           # 应用模型：XxxModel(from_domain/to_domain), CreateXxx(to_domain), UpdateXxx(apply_to)
    │  ├─ service/         # @master / @slave 应用服务（事务边界），调用 domain 仓储接口
-   │  └─ usecase/         # 柯里化用例（调用 service）+ 事件处理器
+   │  └─ usercase/         # 柯里化用例（调用 service）+ 事件处理器
    ├─ infrastructure/
    │  ├─ database/        # RoutingDatabase（主从两引擎）, SqlAlchemyTransactionManager, ORM Base
    │  ├─ do/              # 17 张表的数据对象 XxxDO
@@ -40,9 +40,9 @@ hiaok/                                                   # 项目根
    │  ├─ resources.py     # 启动时打开、关闭时释放的进程级资源
    │  └─ migrations/      # Alembic（async）
    └─ presentation/
-      ├─ endpoint/        # 路由：RequestDTO + 注入的 usecase -> ResponseDTO
+      ├─ endpoint/        # 路由：RequestDTO + 注入的 usercase -> ResponseDTO
       ├─ schema/          # RequestDTO / ResponseDTO（pydantic），与 application model 互转
-      ├─ dependency/      # 依赖注入（FastAPI Depends）：resources -> service -> usecase
+      ├─ dependency/      # 依赖注入（FastAPI Depends）：resources -> service -> usercase
       ├─ exception.py     # Result / HiaokError -> HTTP 状态码
       ├─ middleware.py    # X-Operator / X-Request-Id
       └─ openapi.py       # Swagger 配置
@@ -58,17 +58,18 @@ hiaok/                                                   # 项目根
 ## 一次请求怎么走（以注册用户为例）
 
 ```
-POST /api/v1/orgs/{org}/users
-  UserRegisterRequest.to_command(org)                       # schema: RequestDTO -> RegisterUser
-  uc: RegisterUserDep                                       # dependency: register_user(users, tenants, roles, hasher)
-  register_user(...)(cmd)                                   # usecase: 柯里化，最后一个参数是请求数据
+POST /v1/api/hiaok/user/add   {"requestId": "...", "reqInfo": {"orgUuid": "...", ...}}
+  ApiRequest[UserRegisterRequest].req_info.to_command()     # schema: RequestDTO -> RegisterUser
+  usercase: RegisterUserDep                                  # dependency: register_user(users, tenants, roles, hasher)
+  register_user(...)(cmd)                                   # usercase: 柯里化，最后一个参数是请求数据
     RawPassword.create → tenants.get(@slave) → roles.list_by_uuids(@slave) → hash
     → users.register(@master)                               # service: 打开主库事务
         cmd.to_domain(uuid, hash) → User.register(...)      # domain: 校验 + 记录事件
         repo.save → DAO.to_do（user / user_detail / user_role）
         commit → after_commit: 发布 EntityCreated, UserRegistered
     .map(UserModel.from_domain)
-  unwrap(result, UserResponse.of)                           # Error -> 422/404/409/403
+  reply(result, UserResponse.of)                            # -> {"code": 0, "msg": "success", "resultInfo": {...}}
+                                                            #    Error -> {"code": 400/403/404/409, "msg": ..., "errorCode": ...}
 ```
 
 ## 写主读从：`@master` / `@slave`
@@ -99,20 +100,42 @@ class RoleService(CrudService[Role]):
 
 ## 依赖注入（presentation/dependency/）
 
-全部是 FastAPI `Depends`，分三层：`resources.py`（app.state 上的进程级资源）→ `service.py`（仓储实现注入应用服务）→ `usecase.py`（服务注入用例）。端点只声明需要的用例：
+全部是 FastAPI `Depends`，分三层：`resources.py`（app.state 上的进程级资源）→ `service.py`（仓储实现注入应用服务）→ `usercase.py`（服务注入用例）。端点只声明需要的用例：
 
 ```python
-@router.post("")
-async def register_user(org_uuid: str, body: UserRegisterRequest, uc: RegisterUserDep) -> UserResponse:
-    return unwrap(await uc(body.to_command(org_uuid)), UserResponse.of)
+@router.post("/add")
+async def register_user(body: ApiRequest[UserRegisterRequest], usercase: RegisterUserDep) -> ApiResponse[UserResponse]:
+    return reply(await usercase(body.req_info.to_command()), UserResponse.of)
 ```
 
-标准 CRUD 用 `CrudUseCases` 一组注册（`crud_usecases(service, Model.from_domain)`），组合用例单独注册。
+请求体类型和返回类型直接写在函数签名里，FastAPI 据此校验并生成 Swagger；所有接口都是 `POST`，成功与否用 `code` 表示，所以不需要 `status_code`。
+
+标准 CRUD 用 `CrudUserCases` 一组注册（`crud_usercases(service, Model.from_domain)`），组合用例单独注册。
+
+## 错误目录（hiaok-core `ErrorCatalog`）
+
+业务错误统一在错误目录里声明一次（类别 + 错误码 + 文案模板），不要在代码里临时拼 `conflict(...)`（架构测试会检查）：
+
+```python
+class RoleErrors(ErrorCatalog):  # 和实体写在同一个文件里
+    system_role = ErrorSpec.conflict("system_role", "system role '{code}' cannot be deleted")
+
+
+return RoleErrors.system_role.err(code=self.role_code)  # Result 风格
+RoleErrors.system_role.raise_(code=...)  # 需要抛异常时
+```
+
+跨聚合的用例规则在 `application/usercase/errors.py`（`UserCaseErrors`）；通用的 `not_found(entity, id)` 仍直接使用。
+
+## 测试数据工厂（polyfactory）
+
+`tests/factories.py`：`RoleFactory.build(...)`、`PermissionFactory.batch(3)`，没指定的字段自动填默认值 / 唯一序号。
+工厂直接构造实体（不走校验、不产生事件）；测试校验或事件本身时用聚合的 `create` / `register`。
 
 ## 事件驱动
 
 - 总线：`APP_BROKER=redis`（Streams + consumer group）| `kafka`（key = 聚合 id）| `memory`（进程内）
-- 消费者（`application/usecase/event_handler.py`）：所有领域事件 → `sys_log` 审计；`SysConfigChanged` → 驱逐缓存
+- 消费者（`application/usercase/event_handler.py`）：所有领域事件 → `sys_log` 审计；`SysConfigChanged` → 驱逐缓存
 - 至少一次投递：`sys_log.log_uuid` 由 `event_id` 派生 + `ON CONFLICT DO NOTHING`，重放不会重复
 - 部署：API 设 `APP_CONSUME_EVENTS=false` 只发布，`hiaok worker` 单独消费并可水平扩展
 
@@ -162,7 +185,9 @@ docker compose --profile kafka up -d --build                 # 加 Kafka，并�
 启动后访问：Swagger UI `http://localhost:8000/docs` · ReDoc `/redoc` · OpenAPI `/openapi.json`。
 
 - 按业务分组（tag）并附说明；operationId 形如 `role-create_role`，便于生成客户端
-- 每个 `/api/v1` 接口都标注了 403/404/409 错误结构，以及 `X-Operator` / `X-Request-Id` 请求头（可在 Swagger 里直接填写）
+- 所有接口都是 `POST /v1/api/hiaok/<资源>/<动作>`，请求 `{requestId, reqInfo}`、响应 `{code, msg, resultInfo}`，字段 camelCase；资源所属组织 / 目标资源用 `reqInfo.orgUuid` / `reqInfo.uuid`
+- 可预期的错误是 HTTP 200 + `code`（400/403/404/409）+ `errorCode`；系统错误才是 HTTP 500/502
+- 带 `X-Operator` / `X-Request-Id` / `Authorization`（预留，暂不校验）请求头说明，可在 Swagger 里直接填写
 - 生产环境如不对外，设置 `APP_DOCS_ENABLED=false` 关闭这三个地址
 
 ## 测试

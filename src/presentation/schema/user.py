@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import EmailStr, Field
 
 from ...application.model import (
     AuthorityModel,
@@ -12,11 +12,11 @@ from ...application.model import (
     UserDetailModel,
     UserModel,
 )
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest, TreeNodeResponse
+from .common import ApiModel, EntityResponse, Keyed, MetaRequest, MetaUpdateRequest, OrgScoped, TreeNodeResponse
 from .menu import MenuResponse
 
 
-class UserDetailDTO(BaseModel):
+class UserDetailDTO(ApiModel):
     model_config = {"from_attributes": True}
 
     nickname: str | None = Field(default=None, max_length=128)
@@ -31,7 +31,7 @@ class UserDetailDTO(BaseModel):
         return UserDetailModel(**self.model_dump())
 
 
-class RoleAssignmentDTO(BaseModel):
+class RoleAssignmentDTO(ApiModel):
     model_config = {"from_attributes": True}
 
     role_uuid: str
@@ -41,7 +41,7 @@ class RoleAssignmentDTO(BaseModel):
         return RoleAssignmentModel(self.role_uuid, self.project_uuid)
 
 
-class UserRegisterRequest(MetaRequest):
+class UserRegisterRequest(OrgScoped, MetaRequest):
     tenant_uuid: str
     username: str = Field(..., examples=["alice"])
     password: str = Field(..., min_length=8, repr=False)
@@ -51,13 +51,13 @@ class UserRegisterRequest(MetaRequest):
     nickname: str | None = None
     role_uuids: list[str] = Field(default_factory=list)
 
-    def to_command(self, org_uuid: str) -> RegisterUser:
+    def to_command(self) -> RegisterUser:
         data = self.model_dump()
         data["role_uuids"] = tuple(self.role_uuids)
-        return RegisterUser(org_uuid=org_uuid, **data)
+        return RegisterUser(**data)
 
 
-class UserUpdateRequest(MetaUpdateRequest):
+class UserUpdateRequest(Keyed, MetaUpdateRequest):
     email: EmailStr | None = None
     phone: str | None = None
     group_uuid: str | None = None
@@ -75,12 +75,16 @@ class UserUpdateRequest(MetaUpdateRequest):
         )
 
 
-class AssignRolesRequest(BaseModel):
+class AssignRolesRequest(Keyed):
     roles: list[RoleAssignmentDTO]
 
 
-class ChangePasswordRequest(BaseModel):
+class ChangePasswordRequest(Keyed):
     new_password: str = Field(..., min_length=8, repr=False)
+
+
+class UserAuthoritiesRequest(Keyed):
+    project_uuid: str | None = Field(default=None, description="include roles granted inside this project")
 
 
 class UserResponse(EntityResponse):
@@ -99,7 +103,7 @@ class UserResponse(EntityResponse):
         return cls.model_validate(m)
 
 
-class AuthorityResponse(BaseModel):
+class AuthorityResponse(ApiModel):
     user_uuid: str
     role_codes: list[str]
     permission_codes: list[str]

@@ -1,67 +1,67 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
-from ..dependency import (
-    AppointDepartmentHeadDep,
-    DepartmentCrudDep,
-    DepartmentTreeDep,
-    MoveDepartmentDep,
-    PageDep,
-)
-from ..exception import unwrap
-from ..schema.common import MoveRequest, PageResponse, TreeNodeResponse
-from ..schema.department import (
-    AppointHeadRequest,
-    DepartmentCreateRequest,
-    DepartmentResponse,
-    DepartmentUpdateRequest,
-)
+from ..dependency import AppointDepartmentHeadDep, DepartmentCrudDep, DepartmentTreeDep, MoveDepartmentDep
+from ..schema.common import Keyed, MoveRequest, OrgPageRequest, OrgScoped, PageResponse, TreeNodeResponse
+from ..schema.department import AppointHeadRequest, DepartmentCreateRequest, DepartmentResponse, DepartmentUpdateRequest
+from ..schema.envelope import ApiRequest, ApiResponse, done, reply
 
-router = APIRouter(prefix="/orgs/{org_uuid}/departments", tags=["department"])
+router = APIRouter(prefix="/department", tags=["department"])
 
 
-@router.get("/tree", name="department_tree")
-async def department_tree(org_uuid: str, uc: DepartmentTreeDep) -> list[TreeNodeResponse[DepartmentResponse]]:
-    return [TreeNodeResponse[DepartmentResponse].of(node, DepartmentResponse.of) for node in await uc(org_uuid)]
+@router.post("/tree")
+async def department_tree(
+    request: ApiRequest[OrgScoped], usercase: DepartmentTreeDep
+) -> ApiResponse[list[TreeNodeResponse[DepartmentResponse]]]:
+    nodes = await usercase(request.req_info.org_uuid)
+    return ApiResponse.ok([TreeNodeResponse[DepartmentResponse].of(node, DepartmentResponse.of) for node in nodes])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def create_department(org_uuid: str, body: DepartmentCreateRequest, uc: DepartmentCrudDep) -> DepartmentResponse:
-    return unwrap(await uc.create(body.to_command(org_uuid)), DepartmentResponse.of)
+@router.post("/add")
+async def create_department(
+    body: ApiRequest[DepartmentCreateRequest], uc: DepartmentCrudDep
+) -> ApiResponse[DepartmentResponse]:
+    return reply(await uc.create(body.req_info.to_command()), DepartmentResponse.of)
 
 
-@router.get("")
-async def list_departments(org_uuid: str, page: PageDep, uc: DepartmentCrudDep) -> PageResponse[DepartmentResponse]:
-    return PageResponse.of(await uc.list(org_uuid, page), DepartmentResponse.of)
+@router.post("/list")
+async def list_departments(
+    body: ApiRequest[OrgPageRequest], uc: DepartmentCrudDep
+) -> ApiResponse[PageResponse[DepartmentResponse]]:
+    info = body.req_info
+    return ApiResponse.ok(PageResponse.of(await uc.list(info.org_uuid, info.query), DepartmentResponse.of))
 
 
-@router.get("/{department_uuid}")
-async def get_department(org_uuid: str, department_uuid: str, uc: DepartmentCrudDep) -> DepartmentResponse:
-    return unwrap(await uc.get(org_uuid, department_uuid), DepartmentResponse.of)
+@router.post("/get")
+async def get_department(body: ApiRequest[Keyed], uc: DepartmentCrudDep) -> ApiResponse[DepartmentResponse]:
+    info = body.req_info
+    return reply(await uc.get(info.org_uuid, info.uuid), DepartmentResponse.of)
 
 
-@router.patch("/{department_uuid}")
+@router.post("/update")
 async def update_department(
-    org_uuid: str, department_uuid: str, body: DepartmentUpdateRequest, uc: DepartmentCrudDep
-) -> DepartmentResponse:
-    return unwrap(await uc.update(org_uuid, department_uuid, body.to_command()), DepartmentResponse.of)
+    body: ApiRequest[DepartmentUpdateRequest], uc: DepartmentCrudDep
+) -> ApiResponse[DepartmentResponse]:
+    info = body.req_info
+    return reply(await uc.update(info.org_uuid, info.uuid, info.to_command()), DepartmentResponse.of)
 
 
-@router.delete("/{department_uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_department(org_uuid: str, department_uuid: str, uc: DepartmentCrudDep) -> None:
-    unwrap(await uc.delete(org_uuid, department_uuid), lambda _: None)
+@router.post("/delete")
+async def delete_department(body: ApiRequest[Keyed], uc: DepartmentCrudDep) -> ApiResponse[None]:
+    info = body.req_info
+    return done(await uc.delete(info.org_uuid, info.uuid))
 
 
-@router.put("/{department_uuid}/parent")
-async def move_department(
-    org_uuid: str, department_uuid: str, body: MoveRequest, uc: MoveDepartmentDep
-) -> DepartmentResponse:
-    """Cycle-safe: moving a node under its own subtree is rejected (422 tree_cycle)."""
-    return unwrap(await uc(org_uuid, department_uuid, body.parent_uuid), DepartmentResponse.of)
+@router.post("/move")
+async def move_department(body: ApiRequest[MoveRequest], uc: MoveDepartmentDep) -> ApiResponse[DepartmentResponse]:
+    """Cycle-safe: moving a node under its own subtree is rejected (``tree_cycle``)."""
+    info = body.req_info
+    return reply(await uc(info.org_uuid, info.uuid, info.parent_uuid), DepartmentResponse.of)
 
 
-@router.put("/{department_uuid}/head")
+@router.post("/appoint-head")
 async def appoint_department_head(
-    org_uuid: str, department_uuid: str, body: AppointHeadRequest, uc: AppointDepartmentHeadDep
-) -> DepartmentResponse:
+    body: ApiRequest[AppointHeadRequest], uc: AppointDepartmentHeadDep
+) -> ApiResponse[DepartmentResponse]:
     """Sets ``department.employee_uuid`` (the head); the employee must exist and be active."""
-    return unwrap(await uc(org_uuid, department_uuid, body.employee_uuid), DepartmentResponse.of)
+    info = body.req_info
+    return reply(await uc(info.org_uuid, info.uuid, info.employee_uuid), DepartmentResponse.of)

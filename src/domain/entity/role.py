@@ -4,13 +4,18 @@ from collections.abc import Generator, Iterable
 from dataclasses import dataclass, field
 from typing import Any
 
-from expression import Error, Ok, Result, effect
-from hiaok_core.exception import DomainError, conflict
+from expression import Ok, Result, effect
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from ..enum import RoleType
 from ..vo import Code, non_blank
 from .base import AggregateRoot
 from .event import RoleMenusChanged, RolePermissionsChanged
+
+
+class RoleErrors(ErrorCatalog):
+    system_role = ErrorSpec.conflict("system_role", "system role '{code}' cannot be deleted")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -84,5 +89,5 @@ class Role(AggregateRoot):
 
     def ensure_deletable(self) -> Result[Role, DomainError]:
         if self.role_type is RoleType.SYSTEM:
-            return Error(conflict("system_role", f"system role '{self.role_code}' cannot be deleted"))
+            return RoleErrors.system_role.err(code=self.role_code)
         return Ok(self)

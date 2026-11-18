@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from datetime import date
 
-from expression import Error, Ok, Result
-from hiaok_core.exception import DomainError, validation
+from expression import Ok, Result
+from hiaok_core.exception import DomainError
 from hiaok_core.facade import PasswordHasher
 from hiaok_core.fp import AsyncResult, curry
 
@@ -12,11 +12,12 @@ from ...domain.vo import PasswordHash, RawPassword, RoleAssignment
 from ..model import DepartmentModel, EmployeeModel, OnboardEmployee, RegisterUser, UserModel
 from ..service import DepartmentService, EmployeeService, OnboardingService, RoleService, TenantService
 from ._checks import ensure_all_exist, ensure_exists
+from .errors import UserCaseErrors
 
 
 def _active(e: Employee) -> Result[Employee, DomainError]:
     if not e.enabled or e.leave_date is not None:
-        return Error(validation("employee_inactive", f"employee '{e.employee_uuid}' is not active"))
+        return UserCaseErrors.employee_inactive.err(employee_uuid=e.employee_uuid)
     return Ok(e)
 
 
@@ -71,7 +72,7 @@ def onboard_employee(
         if cmd.username is None:
             return Ok(None)
         if cmd.tenant_uuid is None:
-            return Error(validation("tenant_required", "tenant_uuid is required to open a login account"))
+            return UserCaseErrors.tenant_required.err()
         tenant_uuid = cmd.tenant_uuid
         register = RegisterUser(
             org_uuid=org_uuid,

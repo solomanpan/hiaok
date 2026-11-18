@@ -4,11 +4,16 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Any
 
-from expression import Error, Ok, Result, effect
-from hiaok_core.exception import DomainError, validation
+from expression import Ok, Result, effect
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from ..vo import Code, non_blank
 from .base import AggregateRoot
+
+
+class UserGroupErrors(ErrorCatalog):
+    invalid_parent = ErrorSpec.validation("invalid_parent", "a group cannot be its own parent")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -66,5 +71,5 @@ class UserGroup(AggregateRoot):
 
     def move_to(self, parent_group_uuid: str | None) -> Result[UserGroup, DomainError]:
         if parent_group_uuid == self.group_uuid:
-            return Error(validation("invalid_parent", "a group cannot be its own parent"))
+            return UserGroupErrors.invalid_parent.err()
         return Ok(self.changed(parent_group_uuid=parent_group_uuid))

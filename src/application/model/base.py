@@ -1,4 +1,4 @@
-"""Application models: the boundary objects between use cases and the domain.
+"""Application models: the boundary objects between usercases and the domain.
 
 * ``XxxModel``  - read model.   ``from_domain(aggregate)`` / ``to_domain()`` (trusted rebuild, e.g. from cache)
 * ``CreateXxx`` - command.      ``to_domain(uuid) -> Result[Aggregate, DomainError]`` (validates)

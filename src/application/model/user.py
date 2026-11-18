@@ -104,7 +104,7 @@ class UserModel(EntityModel):
 
 @dataclass(frozen=True, kw_only=True)
 class RegisterUser(CreateMeta):
-    """``password`` is raw here; the use case validates + hashes it before ``to_domain``."""
+    """``password`` is raw here; the usercase validates + hashes it before ``to_domain``."""
 
     org_uuid: str
     tenant_uuid: str

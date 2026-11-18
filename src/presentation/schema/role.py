@@ -2,34 +2,32 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel
-
 from ...application.model import CreateRole, RoleModel, UpdateRole
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest
+from .common import EntityResponse, Keyed, MetaRequest, MetaUpdateRequest, OrgScoped
 
 
-class RoleCreateRequest(MetaRequest):
+class RoleCreateRequest(OrgScoped, MetaRequest):
     tenant_uuid: str
     role_code: str
     role_name: str
     role_type: Literal[0, 1] = 1
 
-    def to_command(self, org_uuid: str) -> CreateRole:
-        return CreateRole(org_uuid=org_uuid, **self.model_dump())
+    def to_command(self) -> CreateRole:
+        return CreateRole(**self.model_dump())
 
 
-class RoleUpdateRequest(MetaUpdateRequest):
+class RoleUpdateRequest(Keyed, MetaUpdateRequest):
     role_name: str | None = None
 
     def to_command(self) -> UpdateRole:
-        return UpdateRole(**self.model_dump())
+        return UpdateRole(**self.patch())
 
 
-class GrantPermissionsRequest(BaseModel):
+class GrantPermissionsRequest(Keyed):
     permission_uuids: list[str]
 
 
-class AssignMenusRequest(BaseModel):
+class AssignMenusRequest(Keyed):
     menu_uuids: list[str]
 
 

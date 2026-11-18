@@ -4,12 +4,17 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Any
 
-from expression import Error, Ok, Result, effect
-from hiaok_core.exception import DomainError, validation
+from expression import Ok, Result, effect
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from ..enum import MenuType
 from ..vo import Code, non_blank
 from .base import AggregateRoot
+
+
+class MenuErrors(ErrorCatalog):
+    invalid_parent = ErrorSpec.validation("invalid_parent", "a menu cannot be its own parent")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -95,5 +100,5 @@ class Menu(AggregateRoot):
 
     def move_to(self, parent_uuid: str | None) -> Result[Menu, DomainError]:
         if parent_uuid == self.menu_uuid:
-            return Error(validation("invalid_parent", "a menu cannot be its own parent"))
+            return MenuErrors.invalid_parent.err()
         return Ok(self.changed(parent_uuid=parent_uuid))

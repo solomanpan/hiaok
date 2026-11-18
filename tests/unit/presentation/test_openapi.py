@@ -28,12 +28,41 @@ def test_operation_ids_are_short_and_unique(spec):
     assert "role-create_role" in ids
 
 
-def test_api_routes_document_domain_errors_and_context_headers(spec):
-    op = spec["paths"]["/api/v1/orgs/{org_uuid}/roles/{role_uuid}"]["get"]
-    assert {"403", "404", "409"} <= set(op["responses"])
-    assert op["responses"]["404"]["content"]["application/json"]["schema"]["$ref"].endswith("/ErrorEnvelope")
+def _operations(spec):
+    return [(path, op) for path, item in spec["paths"].items() if path != "/health" for op in item.values()]
+
+
+def test_every_api_is_post_under_the_versioned_prefix(spec):
+    for path, item in spec["paths"].items():
+        if path == "/health":
+            continue
+        assert path.startswith("/v1/api/hiaok/"), path
+        assert set(item) == {"post"}, path
+
+
+def test_every_api_takes_an_api_request_and_returns_an_api_response(spec):
+    for path, op in _operations(spec):
+        body = op["requestBody"]["content"]["application/json"]["schema"]["$ref"]
+        assert body.rsplit("/", 1)[-1].startswith("ApiRequest_"), path
+        ok = op["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+        assert ok.rsplit("/", 1)[-1].startswith("ApiResponse_"), path
+
+
+def test_envelope_and_dto_fields_are_camel_case(spec):
+    schemas = spec["components"]["schemas"]
+    request = next(v for k, v in schemas.items() if k.startswith("ApiRequest_"))
+    assert set(request["properties"]) == {"requestId", "reqInfo"}
+    response = next(v for k, v in schemas.items() if k.startswith("ApiResponse_"))
+    assert {"code", "msg", "resultInfo"} <= set(response["properties"])
+    for name, schema in schemas.items():
+        for field in schema.get("properties", {}):
+            assert "_" not in field, (name, field)
+
+
+def test_context_headers_are_documented(spec):
+    op = spec["paths"]["/v1/api/hiaok/role/get"]["post"]
     headers = {p["name"] for p in op["parameters"] if p["in"] == "header"}
-    assert headers == {"x-operator", "x-request-id"}
+    assert headers == {"x-operator", "x-request-id", "authorization"}
 
 
 def test_swagger_ui_served():

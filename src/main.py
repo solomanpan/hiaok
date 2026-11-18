@@ -16,7 +16,7 @@ from fastapi import FastAPI
 
 from .application.config import Settings, get_settings
 from .application.service import SysLogService
-from .application.usecase.event_handler import subscribe_event_handlers
+from .application.usercase.event_handler import subscribe_event_handlers
 from .infrastructure.repository import SqlSysLogRepository
 from .infrastructure.resources import Resources, build_resources, open_resources
 from .presentation.endpoint import api_router, health

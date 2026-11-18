@@ -9,9 +9,20 @@ import re
 from dataclasses import dataclass
 
 from expression import Error, Ok, Result
-from hiaok_core.exception import DomainError, validation
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from .base import ValueObject
+
+
+class TextErrors(ErrorCatalog):
+    required = ErrorSpec.validation("{field}_required", "{field} is required")
+    too_long = ErrorSpec.validation("{field}_too_long", "{field} must be <= {max_len} chars")
+    invalid_code = ErrorSpec.validation("invalid_{field}", "{field} must match {pattern}")
+    invalid_username = ErrorSpec.validation("invalid_username", "username must be 3-64 chars of [A-Za-z0-9_.@-]")
+    invalid_email = ErrorSpec.validation("invalid_email", "invalid email address")
+    invalid_phone = ErrorSpec.validation("invalid_phone", "invalid phone number")
+
 
 _CODE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.:\-]{0,63}$")
 # permission codes: "resource:action", wildcard action "resource:*", or "*" (everything)
@@ -21,17 +32,17 @@ _EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 _PHONE = re.compile(r"^\+?[0-9\-]{7,20}$")
 
 
-def _match(pattern: re.Pattern[str], raw: str | None, code: str, message: str) -> Result[str, DomainError]:
+def _match(pattern: re.Pattern[str], raw: str | None, error: DomainError) -> Result[str, DomainError]:
     value = (raw or "").strip()
-    return Ok(value) if pattern.match(value) else Error(validation(code, message))
+    return Ok(value) if pattern.match(value) else Error(error)
 
 
 def non_blank(raw: str | None, field: str, max_len: int = 128) -> Result[str, DomainError]:
     value = (raw or "").strip()
     if not value:
-        return Error(validation(f"{field}_required", f"{field} is required"))
+        return TextErrors.required.err(field=field)
     if len(value) > max_len:
-        return Error(validation(f"{field}_too_long", f"{field} must be <= {max_len} chars"))
+        return TextErrors.too_long.err(field=field, max_len=max_len)
     return Ok(value)
 
 
@@ -43,7 +54,7 @@ class Code(ValueObject):
 
     @staticmethod
     def create(raw: str | None, field: str = "code", pattern: re.Pattern[str] = _CODE) -> Result[Code, DomainError]:
-        return _match(pattern, raw, f"invalid_{field}", f"{field} must match {pattern.pattern}").map(Code)
+        return _match(pattern, raw, TextErrors.invalid_code(field=field, pattern=pattern.pattern)).map(Code)
 
     def __str__(self) -> str:
         return self.value
@@ -55,9 +66,7 @@ class Username(ValueObject):
 
     @staticmethod
     def create(raw: str | None) -> Result[Username, DomainError]:
-        return _match(_USERNAME, raw, "invalid_username", "username must be 3-64 chars of [A-Za-z0-9_.@-]").map(
-            Username
-        )
+        return _match(_USERNAME, raw, TextErrors.invalid_username()).map(Username)
 
     def __str__(self) -> str:
         return self.value
@@ -69,7 +78,7 @@ class Email(ValueObject):
 
     @staticmethod
     def create(raw: str | None) -> Result[Email, DomainError]:
-        return _match(_EMAIL, raw, "invalid_email", "invalid email address").map(Email)
+        return _match(_EMAIL, raw, TextErrors.invalid_email()).map(Email)
 
     @staticmethod
     def optional(raw: str | None) -> Result[Email | None, DomainError]:
@@ -87,7 +96,7 @@ class PhoneNumber(ValueObject):
 
     @staticmethod
     def create(raw: str | None) -> Result[PhoneNumber, DomainError]:
-        return _match(_PHONE, raw, "invalid_phone", "invalid phone number").map(PhoneNumber)
+        return _match(_PHONE, raw, TextErrors.invalid_phone()).map(PhoneNumber)
 
     @staticmethod
     def optional(raw: str | None) -> Result[PhoneNumber | None, DomainError]:

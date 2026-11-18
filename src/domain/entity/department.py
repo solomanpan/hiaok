@@ -4,12 +4,17 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Any
 
-from expression import Error, Ok, Result, effect
-from hiaok_core.exception import DomainError, validation
+from expression import Ok, Result, effect
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from ..vo import Code, non_blank
 from .base import AggregateRoot
 from .event import DepartmentHeadAppointed
+
+
+class DepartmentErrors(ErrorCatalog):
+    invalid_parent = ErrorSpec.validation("invalid_parent", "a department cannot be its own parent")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -82,5 +87,5 @@ class Department(AggregateRoot):
 
     def move_to(self, parent_department_uuid: str | None) -> Result[Department, DomainError]:
         if parent_department_uuid == self.department_uuid:
-            return Error(validation("invalid_parent", "a department cannot be its own parent"))
+            return DepartmentErrors.invalid_parent.err()
         return Ok(self.changed(parent_department_uuid=parent_department_uuid))

@@ -5,13 +5,20 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
-from expression import Error, Ok, Result, effect
-from hiaok_core.exception import DomainError, conflict, validation
+from expression import Ok, Result, effect
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from ..enum import Status
 from ..vo import Code, Email, PhoneNumber, non_blank
 from .base import AggregateRoot
 from .event import EmployeeLinkedToUser, EmployeeTransferred
+
+
+class EmployeeErrors(ErrorCatalog):
+    left = ErrorSpec.validation("employee_left", "cannot transfer an employee who has left")
+    already_linked = ErrorSpec.conflict("employee_already_linked", "employee is already linked to user '{user_uuid}'")
+    invalid_leave_date = ErrorSpec.validation("invalid_leave_date", "leave_date must be after hire_date")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -92,7 +99,7 @@ class Employee(AggregateRoot):
 
     def transfer_to(self, department_uuid: str) -> Result[Employee, DomainError]:
         if self.leave_date is not None:
-            return Error(validation("employee_left", "cannot transfer an employee who has left"))
+            return EmployeeErrors.left.err()
         if department_uuid == self.department_uuid:
             return Ok(self)
         return Ok(
@@ -110,7 +117,7 @@ class Employee(AggregateRoot):
         if self.user_uuid == user_uuid:
             return Ok(self)
         if self.user_uuid is not None:
-            return Error(conflict("employee_already_linked", f"employee is already linked to user '{self.user_uuid}'"))
+            return EmployeeErrors.already_linked.err(user_uuid=self.user_uuid)
         return Ok(
             self.changed(user_uuid=user_uuid).record(
                 EmployeeLinkedToUser(org_uuid=self.org_uuid, employee_uuid=self.employee_uuid, user_uuid=user_uuid)
@@ -119,5 +126,5 @@ class Employee(AggregateRoot):
 
     def resign(self, leave_date: date) -> Result[Employee, DomainError]:
         if self.hire_date is not None and leave_date < self.hire_date:
-            return Error(validation("invalid_leave_date", "leave_date must be after hire_date"))
+            return EmployeeErrors.invalid_leave_date.err()
         return Ok(self.changed(leave_date=leave_date, state=Status.DISABLED))

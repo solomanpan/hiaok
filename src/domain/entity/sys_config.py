@@ -5,8 +5,9 @@ from collections.abc import Generator
 from dataclasses import dataclass
 from typing import Any
 
-from expression import Error, Ok, Result, effect
-from hiaok_core.exception import DomainError, validation
+from expression import Ok, Result, effect
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from ..enum import ConfigValueType
 from ..vo import Code
@@ -16,11 +17,16 @@ from .event import SysConfigChanged
 _BOOLS = {"true": True, "false": False, "1": True, "0": False}
 
 
+class SysConfigErrors(ErrorCatalog):
+    invalid_value_type = ErrorSpec.validation("invalid_value_type", "unknown value_type '{value_type}'")
+    invalid_value = ErrorSpec.validation("invalid_config_value", "'{value}' is not a valid {value_type}")
+
+
 def parse_value(value: str, value_type: ConfigValueType | str) -> Result[Any, DomainError]:
     try:
         value_type = ConfigValueType(value_type)
     except ValueError:
-        return Error(validation("invalid_value_type", f"unknown value_type '{value_type}'"))
+        return SysConfigErrors.invalid_value_type.err(value_type=value_type)
     try:
         match value_type:
             case ConfigValueType.INT:
@@ -33,7 +39,7 @@ def parse_value(value: str, value_type: ConfigValueType | str) -> Result[Any, Do
                 return Ok(value)
     except (ValueError, KeyError):
         pass
-    return Error(validation("invalid_config_value", f"'{value}' is not a valid {value_type.value}"))
+    return SysConfigErrors.invalid_value.err(value=value, value_type=value_type.value)
 
 
 @dataclass(frozen=True, kw_only=True)

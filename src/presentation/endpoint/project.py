@@ -1,35 +1,43 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
-from ..dependency import PageDep, ProjectCrudDep
-from ..exception import unwrap
-from ..schema.common import PageResponse
+from ..dependency import ProjectCrudDep
+from ..schema.common import Keyed, OrgPageRequest, PageResponse
+from ..schema.envelope import ApiRequest, ApiResponse, done, reply
 from ..schema.project import ProjectCreateRequest, ProjectResponse, ProjectUpdateRequest
 
-router = APIRouter(prefix="/orgs/{org_uuid}/projects", tags=["project"])
+router = APIRouter(prefix="/project", tags=["project"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def create_project(org_uuid: str, body: ProjectCreateRequest, uc: ProjectCrudDep) -> ProjectResponse:
-    return unwrap(await uc.create(body.to_command(org_uuid)), ProjectResponse.of)
+@router.post("/add")
+async def create_project(
+    request: ApiRequest[ProjectCreateRequest], usercase: ProjectCrudDep
+) -> ApiResponse[ProjectResponse]:
+    return reply(await usercase.create(request.req_info.to_command()), ProjectResponse.of)
 
 
-@router.get("")
-async def list_projects(org_uuid: str, page: PageDep, uc: ProjectCrudDep) -> PageResponse[ProjectResponse]:
-    return PageResponse.of(await uc.list(org_uuid, page), ProjectResponse.of)
+@router.post("/list")
+async def list_projects(
+    request: ApiRequest[OrgPageRequest], usercase: ProjectCrudDep
+) -> ApiResponse[PageResponse[ProjectResponse]]:
+    info = request.req_info
+    return ApiResponse.ok(PageResponse.of(await usercase.list(info.org_uuid, info.query), ProjectResponse.of))
 
 
-@router.get("/{project_uuid}")
-async def get_project(org_uuid: str, project_uuid: str, uc: ProjectCrudDep) -> ProjectResponse:
-    return unwrap(await uc.get(org_uuid, project_uuid), ProjectResponse.of)
+@router.post("/get")
+async def get_project(request: ApiRequest[Keyed], usercase: ProjectCrudDep) -> ApiResponse[ProjectResponse]:
+    info = request.req_info
+    return reply(await usercase.get(info.org_uuid, info.uuid), ProjectResponse.of)
 
 
-@router.patch("/{project_uuid}")
+@router.post("/update")
 async def update_project(
-    org_uuid: str, project_uuid: str, body: ProjectUpdateRequest, uc: ProjectCrudDep
-) -> ProjectResponse:
-    return unwrap(await uc.update(org_uuid, project_uuid, body.to_command()), ProjectResponse.of)
+    request: ApiRequest[ProjectUpdateRequest], usercase: ProjectCrudDep
+) -> ApiResponse[ProjectResponse]:
+    info = request.req_info
+    return reply(await usercase.update(info.org_uuid, info.uuid, info.to_command()), ProjectResponse.of)
 
 
-@router.delete("/{project_uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_project(org_uuid: str, project_uuid: str, uc: ProjectCrudDep) -> None:
-    unwrap(await uc.delete(org_uuid, project_uuid), lambda _: None)
+@router.post("/delete")
+async def delete_project(request: ApiRequest[Keyed], usercase: ProjectCrudDep) -> ApiResponse[None]:
+    info = request.req_info
+    return done(await usercase.delete(info.org_uuid, info.uuid))

@@ -1,6 +1,6 @@
-"""Use cases injected into endpoints: ``uc: RegisterUserDep``.
+"""Usercases injected into endpoints: ``usercase: RegisterUserDep``.
 
-Each provider partially applies a curried use case with the services it needs.
+Each provider partially applies a curried usercase with the services it needs.
 """
 
 from __future__ import annotations
@@ -54,13 +54,13 @@ from ...application.model import (
     UserModel,
 )
 from ...application.model.base import CreateCommand
-from ...application.usecase import employee as employee_uc
-from ...application.usecase import organization as org_uc
-from ...application.usecase import role as role_uc
-from ...application.usecase import sys_config as config_uc
-from ...application.usecase import tree as tree_uc
-from ...application.usecase import user as user_uc
-from ...application.usecase.crud import CrudUseCases, crud_usecases
+from ...application.usercase import employee as employee_uc
+from ...application.usercase import organization as org_uc
+from ...application.usercase import role as role_uc
+from ...application.usercase import sys_config as config_uc
+from ...application.usercase import tree as tree_uc
+from ...application.usercase import user as user_uc
+from ...application.usercase.crud import CrudUserCases, crud_usercases
 from ...domain.entity import Employee, User
 from ...domain.repository import Page, PageQuery
 from .resources import ResourcesDep
@@ -85,61 +85,63 @@ type R[T] = Awaitable[Result[T, DomainError]]
 
 
 # ---------------------------------------------------------------- CRUD (one bundle per aggregate)
-type OrganizationCrud = CrudUseCases[OrganizationModel, CreateOrganization, UpdateOrganization]
-type TenantCrud = CrudUseCases[TenantModel, CreateTenant, UpdateTenant]
-type UserCrud = CrudUseCases[UserModel, CreateCommand[User], UpdateUser]  # create -> RegisterUserDep
-type UserGroupCrud = CrudUseCases[UserGroupModel, CreateUserGroup, UpdateUserGroup]
-type ProjectCrud = CrudUseCases[ProjectModel, CreateProject, UpdateProject]
-type RoleCrud = CrudUseCases[RoleModel, CreateRole, UpdateRole]
-type PermissionCrud = CrudUseCases[PermissionModel, CreatePermission, UpdatePermission]
-type MenuCrud = CrudUseCases[MenuModel, CreateMenu, UpdateMenu]
-type DepartmentCrud = CrudUseCases[DepartmentModel, CreateDepartment, UpdateDepartment]
-type EmployeeCrud = CrudUseCases[EmployeeModel, CreateCommand[Employee], UpdateEmployee]  # create -> OnboardEmployeeDep
-type SysConfigCrud = CrudUseCases[SysConfigModel, CreateSysConfig, UpdateSysConfig]
+type OrganizationCrud = CrudUserCases[OrganizationModel, CreateOrganization, UpdateOrganization]
+type TenantCrud = CrudUserCases[TenantModel, CreateTenant, UpdateTenant]
+type UserCrud = CrudUserCases[UserModel, CreateCommand[User], UpdateUser]  # create -> RegisterUserDep
+type UserGroupCrud = CrudUserCases[UserGroupModel, CreateUserGroup, UpdateUserGroup]
+type ProjectCrud = CrudUserCases[ProjectModel, CreateProject, UpdateProject]
+type RoleCrud = CrudUserCases[RoleModel, CreateRole, UpdateRole]
+type PermissionCrud = CrudUserCases[PermissionModel, CreatePermission, UpdatePermission]
+type MenuCrud = CrudUserCases[MenuModel, CreateMenu, UpdateMenu]
+type DepartmentCrud = CrudUserCases[DepartmentModel, CreateDepartment, UpdateDepartment]
+type EmployeeCrud = CrudUserCases[
+    EmployeeModel, CreateCommand[Employee], UpdateEmployee
+]  # create -> OnboardEmployeeDep
+type SysConfigCrud = CrudUserCases[SysConfigModel, CreateSysConfig, UpdateSysConfig]
 
 
 def get_organization_crud(s: OrganizationServiceDep) -> OrganizationCrud:
-    return crud_usecases(s, OrganizationModel.from_domain)
+    return crud_usercases(s, OrganizationModel.from_domain)
 
 
 def get_tenant_crud(s: TenantServiceDep) -> TenantCrud:
-    return crud_usecases(s, TenantModel.from_domain)
+    return crud_usercases(s, TenantModel.from_domain)
 
 
 def get_user_crud(s: UserServiceDep) -> UserCrud:
-    return crud_usecases(s, UserModel.from_domain)
+    return crud_usercases(s, UserModel.from_domain)
 
 
 def get_user_group_crud(s: UserGroupServiceDep) -> UserGroupCrud:
-    return crud_usecases(s, UserGroupModel.from_domain)
+    return crud_usercases(s, UserGroupModel.from_domain)
 
 
 def get_project_crud(s: ProjectServiceDep) -> ProjectCrud:
-    return crud_usecases(s, ProjectModel.from_domain)
+    return crud_usercases(s, ProjectModel.from_domain)
 
 
 def get_role_crud(s: RoleServiceDep) -> RoleCrud:
-    return crud_usecases(s, RoleModel.from_domain)
+    return crud_usercases(s, RoleModel.from_domain)
 
 
 def get_permission_crud(s: PermissionServiceDep) -> PermissionCrud:
-    return crud_usecases(s, PermissionModel.from_domain)
+    return crud_usercases(s, PermissionModel.from_domain)
 
 
 def get_menu_crud(s: MenuServiceDep) -> MenuCrud:
-    return crud_usecases(s, MenuModel.from_domain)
+    return crud_usercases(s, MenuModel.from_domain)
 
 
 def get_department_crud(s: DepartmentServiceDep) -> DepartmentCrud:
-    return crud_usecases(s, DepartmentModel.from_domain)
+    return crud_usercases(s, DepartmentModel.from_domain)
 
 
 def get_employee_crud(s: EmployeeServiceDep) -> EmployeeCrud:
-    return crud_usecases(s, EmployeeModel.from_domain)
+    return crud_usercases(s, EmployeeModel.from_domain)
 
 
 def get_sys_config_crud(s: SysConfigServiceDep) -> SysConfigCrud:
-    return crud_usecases(s, SysConfigModel.from_domain)
+    return crud_usercases(s, SysConfigModel.from_domain)
 
 
 OrganizationCrudDep = Annotated[OrganizationCrud, Depends(get_organization_crud)]

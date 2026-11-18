@@ -1,7 +1,7 @@
 from typing import cast
 
 from src.application.service import SysLogService, config_cache_key
-from src.application.usecase.event_handler import event_content, subscribe_event_handlers
+from src.application.usercase.event_handler import event_content, subscribe_event_handlers
 from src.domain.entity import SysLog
 from src.domain.entity.event import EntityCreated, RolePermissionsChanged, SysConfigChanged
 

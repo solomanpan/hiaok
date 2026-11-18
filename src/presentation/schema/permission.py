@@ -5,10 +5,10 @@ from typing import Literal
 from pydantic import Field
 
 from ...application.model import CreatePermission, PermissionModel, UpdatePermission
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest
+from .common import EntityResponse, Keyed, MetaRequest, MetaUpdateRequest, OrgScoped
 
 
-class PermissionCreateRequest(MetaRequest):
+class PermissionCreateRequest(OrgScoped, MetaRequest):
     perm_code: str = Field(..., examples=["project:create"])
     perm_name: str
     perm_type: Literal[0, 1, 2] = 0
@@ -16,16 +16,16 @@ class PermissionCreateRequest(MetaRequest):
     action: str | None = None
     menu_uuid: str | None = None
 
-    def to_command(self, org_uuid: str) -> CreatePermission:
-        return CreatePermission(org_uuid=org_uuid, **self.model_dump())
+    def to_command(self) -> CreatePermission:
+        return CreatePermission(**self.model_dump())
 
 
-class PermissionUpdateRequest(MetaUpdateRequest):
+class PermissionUpdateRequest(Keyed, MetaUpdateRequest):
     perm_name: str | None = None
     menu_uuid: str | None = None
 
     def to_command(self) -> UpdatePermission:
-        return UpdatePermission(**self.model_dump())
+        return UpdatePermission(**self.patch())
 
 
 class PermissionResponse(EntityResponse):

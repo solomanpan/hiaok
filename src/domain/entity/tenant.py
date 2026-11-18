@@ -5,11 +5,16 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
-from expression import Error, Ok, Result, effect
-from hiaok_core.exception import DomainError, validation
+from expression import Ok, Result, effect
+from hiaok_core.exception import DomainError
+from hiaok_core.factory import ErrorCatalog, ErrorSpec
 
 from ..vo import Code, non_blank
 from .base import AggregateRoot
+
+
+class TenantErrors(ErrorCatalog):
+    inactive = ErrorSpec.validation("tenant_inactive", "tenant '{tenant_uuid}' is disabled or expired")
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -66,5 +71,5 @@ class Tenant(AggregateRoot):
 
     def ensure_active(self, now: datetime) -> Result[Tenant, DomainError]:
         if not self.enabled or self.is_expired(now):
-            return Error(validation("tenant_inactive", f"tenant '{self.tenant_uuid}' is disabled or expired"))
+            return TenantErrors.inactive.err(tenant_uuid=self.tenant_uuid)
         return Ok(self)

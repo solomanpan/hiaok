@@ -3,8 +3,8 @@ from __future__ import annotations
 from collections.abc import Iterable
 from datetime import UTC, datetime
 
-from expression import Error, Ok, Result
-from hiaok_core.exception import DomainError, validation
+from expression import Ok, Result
+from hiaok_core.exception import DomainError
 from hiaok_core.facade import PasswordHasher
 from hiaok_core.fp import AsyncResult, curry
 
@@ -22,13 +22,14 @@ from ..model import (
 )
 from ..service import MenuService, PermissionService, RoleService, TenantService, UserService
 from ._checks import ensure_all_exist
+from .errors import UserCaseErrors
 
 
 def _same_tenant(roles: Iterable[Role], tenant_uuid: str) -> Result[list[Role], DomainError]:
     roles = list(roles)
     foreign = sorted(r.role_code.value for r in roles if r.tenant_uuid != tenant_uuid)
     if foreign:
-        return Error(validation("role_tenant_mismatch", f"roles {foreign} belong to another tenant"))
+        return UserCaseErrors.role_tenant_mismatch.err(roles=foreign)
     return Ok(roles)
 
 
@@ -111,4 +112,4 @@ def get_user_authorities(
 
 
 def _enabled(user: User) -> Result[User, DomainError]:
-    return Ok(user) if user.enabled else Error(validation("user_disabled", f"user '{user.user_uuid}' is disabled"))
+    return Ok(user) if user.enabled else UserCaseErrors.user_disabled.err(user_uuid=user.user_uuid)

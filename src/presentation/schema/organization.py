@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import EmailStr, Field
 
 from ...application.model import CreateOrganization, OrganizationModel, OrgDetailModel, UpdateOrganization
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest
+from .common import ApiModel, EntityResponse, MetaRequest, MetaUpdateRequest, OrgScoped
 
 
-class OrgDetailDTO(BaseModel):
+class OrgDetailDTO(ApiModel):
     """Used both as request and response body."""
 
     legal_name: str | None = Field(default=None, max_length=255)
@@ -39,11 +39,11 @@ class OrganizationCreateRequest(MetaRequest):
         )
 
 
-class OrganizationUpdateRequest(MetaUpdateRequest):
+class OrganizationUpdateRequest(OrgScoped, MetaUpdateRequest):
     org_name: str | None = None
 
     def to_command(self) -> UpdateOrganization:
-        return UpdateOrganization(**self.model_dump())
+        return UpdateOrganization(**self.patch())
 
 
 class OrganizationResponse(EntityResponse):
@@ -54,3 +54,10 @@ class OrganizationResponse(EntityResponse):
     @classmethod
     def of(cls, m: OrganizationModel) -> OrganizationResponse:
         return cls.model_validate(m)
+
+
+class OrgDetailUpdateRequest(OrgDetailDTO, OrgScoped):
+    """Flat: ``orgUuid`` plus the detail fields."""
+
+    def to_model(self) -> OrgDetailModel:
+        return OrgDetailModel(**self.model_dump(exclude={"org_uuid"}))

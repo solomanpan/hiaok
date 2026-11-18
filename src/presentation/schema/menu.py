@@ -5,10 +5,10 @@ from typing import Literal
 from pydantic import Field
 
 from ...application.model import CreateMenu, MenuModel, UpdateMenu
-from .common import EntityResponse, MetaRequest, MetaUpdateRequest
+from .common import EntityResponse, Keyed, MetaRequest, MetaUpdateRequest, OrgScoped
 
 
-class MenuCreateRequest(MetaRequest):
+class MenuCreateRequest(OrgScoped, MetaRequest):
     menu_code: str
     menu_name: str
     menu_type: Literal[0, 1, 2] = 1
@@ -19,11 +19,11 @@ class MenuCreateRequest(MetaRequest):
     sort_order: int = Field(default=0, ge=0)
     visible: bool = True
 
-    def to_command(self, org_uuid: str) -> CreateMenu:
-        return CreateMenu(org_uuid=org_uuid, **self.model_dump())
+    def to_command(self) -> CreateMenu:
+        return CreateMenu(**self.model_dump())
 
 
-class MenuUpdateRequest(MetaUpdateRequest):
+class MenuUpdateRequest(Keyed, MetaUpdateRequest):
     menu_name: str | None = None
     path: str | None = None
     component: str | None = None
@@ -32,7 +32,7 @@ class MenuUpdateRequest(MetaUpdateRequest):
     visible: bool | None = None
 
     def to_command(self) -> UpdateMenu:
-        return UpdateMenu(**self.model_dump())
+        return UpdateMenu(**self.patch())
 
 
 class MenuResponse(EntityResponse):

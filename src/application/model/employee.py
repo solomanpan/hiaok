@@ -85,7 +85,7 @@ class CreateEmployee(CreateMeta):
 
 @dataclass(frozen=True, kw_only=True)
 class OnboardEmployee:
-    """Hire + (optionally) open a login account in one use case."""
+    """Hire + (optionally) open a login account in one usercase."""
 
     employee: CreateEmployee
     tenant_uuid: str | None = None

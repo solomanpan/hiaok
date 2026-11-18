@@ -1,14 +1,12 @@
-from fastapi import APIRouter, status
+from fastapi import APIRouter
 
 from ..dependency import (
     EmployeeCrudDep,
     OnboardEmployeeDep,
-    PageDep,
     ResignEmployeeDep,
     TransferEmployeeDep,
 )
-from ..exception import unwrap
-from ..schema.common import PageResponse
+from ..schema.common import Keyed, OrgPageRequest, PageResponse
 from ..schema.employee import (
     EmployeeOnboardRequest,
     EmployeeResponse,
@@ -17,53 +15,64 @@ from ..schema.employee import (
     ResignRequest,
     TransferRequest,
 )
+from ..schema.envelope import ApiRequest, ApiResponse, done, reply
 from ..schema.user import UserResponse
 
-router = APIRouter(prefix="/orgs/{org_uuid}/employees", tags=["employee"])
+router = APIRouter(prefix="/employee", tags=["employee"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
-async def onboard_employee(org_uuid: str, body: EmployeeOnboardRequest, uc: OnboardEmployeeDep) -> OnboardResponse:
+@router.post("/add")
+async def onboard_employee(
+    request: ApiRequest[EmployeeOnboardRequest], usercase: OnboardEmployeeDep
+) -> ApiResponse[OnboardResponse]:
     """Hire, and when ``account`` is given also register + link a login user - one transaction."""
-    return unwrap(
-        await uc(body.to_command(org_uuid)),
+    return reply(
+        await usercase(request.req_info.to_command()),
         lambda pair: OnboardResponse(
             employee=EmployeeResponse.of(pair[0]), user=None if pair[1] is None else UserResponse.of(pair[1])
         ),
     )
 
 
-@router.get("")
-async def list_employees(org_uuid: str, page: PageDep, uc: EmployeeCrudDep) -> PageResponse[EmployeeResponse]:
-    return PageResponse.of(await uc.list(org_uuid, page), EmployeeResponse.of)
+@router.post("/list")
+async def list_employees(
+    request: ApiRequest[OrgPageRequest], usercase: EmployeeCrudDep
+) -> ApiResponse[PageResponse[EmployeeResponse]]:
+    info = request.req_info
+    return ApiResponse.ok(PageResponse.of(await usercase.list(info.org_uuid, info.query), EmployeeResponse.of))
 
 
-@router.get("/{employee_uuid}")
-async def get_employee(org_uuid: str, employee_uuid: str, uc: EmployeeCrudDep) -> EmployeeResponse:
-    return unwrap(await uc.get(org_uuid, employee_uuid), EmployeeResponse.of)
+@router.post("/get")
+async def get_employee(request: ApiRequest[Keyed], usercase: EmployeeCrudDep) -> ApiResponse[EmployeeResponse]:
+    info = request.req_info
+    return reply(await usercase.get(info.org_uuid, info.uuid), EmployeeResponse.of)
 
 
-@router.patch("/{employee_uuid}")
+@router.post("/update")
 async def update_employee(
-    org_uuid: str, employee_uuid: str, body: EmployeeUpdateRequest, uc: EmployeeCrudDep
-) -> EmployeeResponse:
-    return unwrap(await uc.update(org_uuid, employee_uuid, body.to_command()), EmployeeResponse.of)
+    request: ApiRequest[EmployeeUpdateRequest], usercase: EmployeeCrudDep
+) -> ApiResponse[EmployeeResponse]:
+    info = request.req_info
+    return reply(await usercase.update(info.org_uuid, info.uuid, info.to_command()), EmployeeResponse.of)
 
 
-@router.delete("/{employee_uuid}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_employee(org_uuid: str, employee_uuid: str, uc: EmployeeCrudDep) -> None:
-    unwrap(await uc.delete(org_uuid, employee_uuid), lambda _: None)
+@router.post("/delete")
+async def delete_employee(request: ApiRequest[Keyed], usercase: EmployeeCrudDep) -> ApiResponse[None]:
+    info = request.req_info
+    return done(await usercase.delete(info.org_uuid, info.uuid))
 
 
-@router.post("/{employee_uuid}/transfer")
+@router.post("/transfer")
 async def transfer_employee(
-    org_uuid: str, employee_uuid: str, body: TransferRequest, uc: TransferEmployeeDep
-) -> EmployeeResponse:
-    return unwrap(await uc(org_uuid, employee_uuid, body.department_uuid), EmployeeResponse.of)
+    request: ApiRequest[TransferRequest], usercase: TransferEmployeeDep
+) -> ApiResponse[EmployeeResponse]:
+    info = request.req_info
+    return reply(await usercase(info.org_uuid, info.uuid, info.department_uuid), EmployeeResponse.of)
 
 
-@router.post("/{employee_uuid}/resign")
+@router.post("/resign")
 async def resign_employee(
-    org_uuid: str, employee_uuid: str, body: ResignRequest, uc: ResignEmployeeDep
-) -> EmployeeResponse:
-    return unwrap(await uc(org_uuid, employee_uuid, body.leave_date), EmployeeResponse.of)
+    request: ApiRequest[ResignRequest], usercase: ResignEmployeeDep
+) -> ApiResponse[EmployeeResponse]:
+    info = request.req_info
+    return reply(await usercase(info.org_uuid, info.uuid, info.leave_date), EmployeeResponse.of)

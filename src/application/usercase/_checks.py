@@ -1,4 +1,4 @@
-"""Cross-aggregate existence checks shared by use cases."""
+"""Cross-aggregate existence checks shared by usercases."""
 
 from __future__ import annotations
 

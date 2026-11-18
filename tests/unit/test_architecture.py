@@ -54,7 +54,7 @@ def test_layer_dependencies(layer, forbidden):
     ("layer", "allowed"),
     [
         ("domain", {"entity", "vo", "enum", "service", "repository"}),
-        ("application", {"service", "usecase", "config", "model"}),
+        ("application", {"service", "usercase", "config", "model"}),
         ("presentation", {"endpoint", "schema", "dependency"}),
     ],
 )
@@ -106,3 +106,35 @@ def test_every_entity_dao_converts_both_ways():
         if cls in (dao.BaseDao, EntityDao, LinkDao) or issubclass(cls, LinkDao):
             continue
         assert issubclass(cls, EntityDao), f"{name} must extend EntityDao (to_entity / to_do)"
+
+
+def test_business_errors_come_from_error_catalogs():
+    """Domain / application / infrastructure produce errors via ``ErrorCatalog`` specs, never ad hoc.
+
+    ``not_found(entity, id)`` stays allowed: it is generic, not a business rule.
+    """
+    adhoc = {"validation", "conflict", "forbidden"}
+    offenders = []
+    for layer in ("domain", "application", "infrastructure"):
+        for path in (SRC / layer).rglob("*.py"):
+            tree = ast.parse(path.read_text())
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ImportFrom) and node.module == "hiaok_core.exception":
+                    offenders += [f"{path.relative_to(ROOT)} imports {a.name}" for a in node.names if a.name in adhoc]
+    assert offenders == []
+
+
+def test_error_catalogs_are_discoverable():
+    """Every catalog can be listed (e.g. to publish the error-code table for clients)."""
+    import importlib
+    import pkgutil
+
+    from hiaok_core.factory import ErrorCatalog
+
+    import src
+
+    for info in pkgutil.walk_packages(src.__path__, "src."):
+        if ".migrations" not in info.name:
+            importlib.import_module(info.name)
+    codes = {spec.code for cat in ErrorCatalog.__subclasses__() for _, spec in cat.specs()}
+    assert {"system_role", "weak_password", "tree_cycle", "duplicate_{columns}", "user_disabled"} <= codes

@@ -4,7 +4,11 @@ from datetime import datetime
 from typing import Any
 
 from ...application.model import SysLogModel
-from .common import EntityResponse
+from .common import EntityResponse, OrgPageRequest
+
+
+class SysLogListRequest(OrgPageRequest):
+    event_type: str | None = None
 
 
 class SysLogResponse(EntityResponse):
