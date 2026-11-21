@@ -50,9 +50,11 @@ class UserRegisterRequest(OrgScoped, MetaRequest):
     group_uuid: str | None = None
     nickname: str | None = None
     role_uuids: list[str] = Field(default_factory=list)
+    captcha_id: str | None = Field(default=None, description="needed when captcha is required (POST /auth/captcha)")
+    captcha_code: str | None = Field(default=None, max_length=16)
 
     def to_command(self) -> RegisterUser:
-        data = self.model_dump()
+        data = self.model_dump(exclude={"captcha_id", "captcha_code"})
         data["role_uuids"] = tuple(self.role_uuids)
         return RegisterUser(**data)
 

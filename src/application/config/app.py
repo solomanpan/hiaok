@@ -18,3 +18,10 @@ class AppConfig(BaseSettings):
     cache: Literal["redis", "memory"] = "redis"
     consume_events: bool = True  # False => API node only publishes; run `hiaok worker` to consume
     docs_enabled: bool = True  # /docs, /redoc, /openapi.json (set APP_DOCS_ENABLED=false in prod if not public)
+    cors_origins: str = (
+        ""  # comma-separated browser origins allowed to call the API (web console, tauri://localhost); "" = off
+    )
+
+    @property
+    def cors_origin_list(self) -> list[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]

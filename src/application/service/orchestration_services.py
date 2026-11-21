@@ -21,6 +21,7 @@ from ...domain.vo import PasswordHash, RoleAssignment
 from ..model import (
     CreateEmployee,
     CreateOrganization,
+    CreatePermission,
     CreateRole,
     CreateSysConfig,
     CreateTenant,
@@ -32,7 +33,7 @@ from .employee_service import EmployeeService
 from .ids import next_id
 from .organization_service import OrganizationService
 from .role_service import RoleService
-from .simple_services import TenantService
+from .simple_services import PermissionService, TenantService
 from .sys_config_service import SysConfigService
 from .user_service import UserService
 
@@ -41,6 +42,16 @@ DEFAULT_CONFIGS: tuple[tuple[str, str, str], ...] = (
     ("security.session.ttl_minutes", "120", "int"),
     ("ui.default_locale", "ja-JP", "string"),
 )
+
+
+ADMIN_PERMISSIONS: tuple[str, ...] = (
+    *(f"{resource}:*" for resource in (
+        "tenant", "user", "role", "permission", "menu", "project", "group", "department", "employee", "config", "log"
+    )),
+    "organization:get",
+    "organization:update",
+    "organization:update-detail",
+)  # fmt: skip
 
 
 @dataclass(frozen=True)
@@ -59,10 +70,12 @@ class ProvisioningService(ApplicationService):
         tenants: TenantService,
         roles: RoleService,
         configs: SysConfigService,
+        permissions: PermissionService,
         new_id: IdGenerator = next_id,
     ) -> None:
         super().__init__(tx, publisher, new_id)
         self._orgs, self._tenants, self._roles, self._configs = organizations, tenants, roles, configs
+        self._permissions = permissions
 
     @master
     async def provision(self, cmd: CreateOrganization) -> Result[Provisioned, DomainError]:
@@ -88,7 +101,22 @@ class ProvisioningService(ApplicationService):
             role_name="Organization administrator",
             role_type=RoleType.SYSTEM,
         )
-        return (await self._roles.create(cmd)).map(lambda role: Provisioned(org, tenant, role))
+        created = await self._roles.create(cmd)
+        if isinstance(created, Error):
+            return Error(created.error)
+        role = created.ok
+        # the administrator manages everything inside the organization but is NOT a "*" superuser (which may act on
+        # any organization): one wildcard per resource, plus the organization's own read / update
+        uuids: list[str] = []
+        for code in ADMIN_PERMISSIONS:
+            perm = await self._permissions.create(
+                CreatePermission(org_uuid=org.org_uuid, perm_code=code, perm_name=code, resource=code.split(":")[0])
+            )
+            if isinstance(perm, Error):
+                return Error(perm.error)
+            uuids.append(perm.ok.permission_uuid)
+        granted = await self._roles.grant_permissions(org.org_uuid, role.role_uuid, uuids)
+        return granted.map(lambda r: Provisioned(org, tenant, r))
 
     async def _seed_configs(self, org_uuid: str) -> Result[None, DomainError]:
         for key, value, value_type in DEFAULT_CONFIGS:

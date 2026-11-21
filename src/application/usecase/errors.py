@@ -11,3 +11,4 @@ class UseCaseErrors(ErrorCatalog):
     invalid_payload = ErrorSpec.validation("invalid_payload", "{command_type}: {problem}")
     unknown_command = ErrorSpec.validation("unknown_command", "no handler for {command_type}")
     invalid_credentials = ErrorSpec.forbidden("invalid_credentials", "invalid username or password")
+    captcha_invalid = ErrorSpec.validation("captcha_invalid", "captcha is missing, expired or wrong")

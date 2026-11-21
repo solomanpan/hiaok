@@ -6,7 +6,18 @@ Endpoints only declare the usecase they need, e.g. ``usecase: RegisterUserDep``;
 resolved per request by these providers.
 """
 
-from .auth import AuthServiceDep, BearerDep, LoginDep, PrincipalDep, authenticated, has_permission, has_role
+from .auth import (
+    AuthServiceDep,
+    BearerDep,
+    CaptchaGuardDep,
+    CaptchaServiceDep,
+    LoginDep,
+    OptionalPrincipalDep,
+    PrincipalDep,
+    authenticated,
+    has_permission,
+    has_role,
+)
 from .command import WriteSubmitterDep, build_write_handlers
 from .resources import ResourcesDep
 from .service import (
@@ -52,6 +63,8 @@ from .usecase import (
 __all__ = [
     "AuthServiceDep",
     "BearerDep",
+    "CaptchaGuardDep",
+    "CaptchaServiceDep",
     "ChangePasswordDep",
     "DepartmentCrudDep",
     "DepartmentServiceDep",
@@ -69,6 +82,7 @@ __all__ = [
     "MenuTreeDep",
     "OnboardEmployeeDep",
     "OnboardingServiceDep",
+    "OptionalPrincipalDep",
     "OrganizationCrudDep",
     "OrganizationServiceDep",
     "PermissionCrudDep",

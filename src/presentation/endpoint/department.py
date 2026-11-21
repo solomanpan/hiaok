@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from ...application.model import AppointHeadPayload, MovePayload
-from ..dependency import DepartmentCrudDep, DepartmentTreeDep, WriteSubmitterDep
+from ..dependency import DepartmentCrudDep, DepartmentTreeDep, WriteSubmitterDep, has_permission
 from ..schema.command import AcceptedResponse, accepted
 from ..schema.common import Keyed, MoveRequest, OrgPageRequest, OrgScoped, PageResponse, TreeNodeResponse
 from ..schema.department import AppointHeadRequest, DepartmentCreateRequest, DepartmentResponse, DepartmentUpdateRequest
@@ -10,7 +10,7 @@ from ..schema.envelope import ApiRequest, ApiResponse, reply
 router = APIRouter(prefix="/department", tags=["department"])
 
 
-@router.post("/tree")
+@router.post("/tree", dependencies=[has_permission("department:tree")])
 async def department_tree(
     request: ApiRequest[OrgScoped], usecase: DepartmentTreeDep
 ) -> ApiResponse[list[TreeNodeResponse[DepartmentResponse]]]:
@@ -18,7 +18,7 @@ async def department_tree(
     return ApiResponse.ok([TreeNodeResponse[DepartmentResponse].of(node, DepartmentResponse.of) for node in nodes])
 
 
-@router.post("/add")
+@router.post("/add", dependencies=[has_permission("department:add")])
 async def create_department(
     request: ApiRequest[DepartmentCreateRequest], submitter: WriteSubmitterDep
 ) -> ApiResponse[AcceptedResponse]:
@@ -26,7 +26,7 @@ async def create_department(
     return accepted(await submitter.create("Department", request.request_id, info.org_uuid, info.to_command()))
 
 
-@router.post("/list")
+@router.post("/list", dependencies=[has_permission("department:list")])
 async def list_departments(
     request: ApiRequest[OrgPageRequest], usecase: DepartmentCrudDep
 ) -> ApiResponse[PageResponse[DepartmentResponse]]:
@@ -34,13 +34,13 @@ async def list_departments(
     return ApiResponse.ok(PageResponse.of(await usecase.list(info.org_uuid, info.query), DepartmentResponse.of))
 
 
-@router.post("/get")
+@router.post("/get", dependencies=[has_permission("department:get")])
 async def get_department(request: ApiRequest[Keyed], usecase: DepartmentCrudDep) -> ApiResponse[DepartmentResponse]:
     info = request.req_info
     return reply(await usecase.get(info.org_uuid, info.uuid), DepartmentResponse.of)
 
 
-@router.post("/update")
+@router.post("/update", dependencies=[has_permission("department:update")])
 async def update_department(
     request: ApiRequest[DepartmentUpdateRequest], submitter: WriteSubmitterDep
 ) -> ApiResponse[AcceptedResponse]:
@@ -50,13 +50,13 @@ async def update_department(
     )
 
 
-@router.post("/delete")
+@router.post("/delete", dependencies=[has_permission("department:delete")])
 async def delete_department(request: ApiRequest[Keyed], submitter: WriteSubmitterDep) -> ApiResponse[AcceptedResponse]:
     info = request.req_info
     return accepted(await submitter.delete("Department", request.request_id, info.org_uuid, info.uuid))
 
 
-@router.post("/move")
+@router.post("/move", dependencies=[has_permission("department:move")])
 async def move_department(
     request: ApiRequest[MoveRequest], submitter: WriteSubmitterDep
 ) -> ApiResponse[AcceptedResponse]:
@@ -69,7 +69,7 @@ async def move_department(
     )
 
 
-@router.post("/appoint-head")
+@router.post("/appoint-head", dependencies=[has_permission("department:appoint-head")])
 async def appoint_department_head(
     request: ApiRequest[AppointHeadRequest], submitter: WriteSubmitterDep
 ) -> ApiResponse[AcceptedResponse]:

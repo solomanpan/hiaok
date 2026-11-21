@@ -37,6 +37,10 @@ TEMPLATES: Translations = {
         "ja": "{command_type} のハンドラがありません",
     },
     "invalid username or password": {"zh": "用户名或密码错误", "ja": "ユーザー名またはパスワードが正しくありません"},
+    "captcha is missing, expired or wrong": {
+        "zh": "验证码缺失、已过期或错误",
+        "ja": "認証コードがないか、期限切れか、正しくありません",
+    },
     # infrastructure
     "{what} already exists ({constraint})": {
         "zh": "{what} 已存在（{constraint}）",

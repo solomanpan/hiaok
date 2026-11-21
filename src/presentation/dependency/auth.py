@@ -14,15 +14,16 @@ from __future__ import annotations
 from collections.abc import Awaitable, Callable
 from typing import Annotated, Any
 
-from expression import Error, Result
+from expression import Error, Ok, Result
 from fastapi import Depends, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from hiaok_core.context import current_context
 from hiaok_core.exception import DomainError
 
 from ...application.model import LoginCommand, LoginResult, Principal, Session
-from ...application.service import AuthService
+from ...application.service import AuthService, CaptchaService
 from ...application.usecase import auth as auth_uc
+from ...application.usecase.errors import UseCaseErrors
 from ..security import SecurityErrors, Unauthenticated, auth_service
 from .resources import ResourcesDep
 from .service import TenantServiceDep, UserServiceDep
@@ -51,6 +52,32 @@ def get_login(users: UserServiceDep, tenants: TenantServiceDep, r: ResourcesDep,
 LoginDep = Annotated[Login, Depends(get_login)]
 
 
+def get_captcha_service(r: ResourcesDep) -> CaptchaService:
+    return CaptchaService(r.cache, r.settings.auth.captcha_ttl_seconds)
+
+
+CaptchaServiceDep = Annotated[CaptchaService, Depends(get_captcha_service)]
+
+
+class CaptchaGuard:
+    """Checks the captcha of a login / register call; a no-op while ``AUTH_CAPTCHA_ENABLED`` is false."""
+
+    def __init__(self, service: CaptchaService, enabled: bool) -> None:
+        self._service, self.enabled = service, enabled
+
+    async def __call__(self, captcha_id: str | None, captcha_code: str | None) -> Result[None, DomainError]:
+        if not self.enabled or await self._service.verify(captcha_id, captcha_code):
+            return Ok(None)
+        return UseCaseErrors.captcha_invalid.err()
+
+
+def get_captcha_guard(r: ResourcesDep, service: CaptchaServiceDep) -> CaptchaGuard:
+    return CaptchaGuard(service, r.settings.auth.captcha_enabled)
+
+
+CaptchaGuardDep = Annotated[CaptchaGuard, Depends(get_captcha_guard)]
+
+
 async def get_principal(
     r: ResourcesDep, auth: AuthServiceDep, authorities: GetUserAuthoritiesDep, _: BearerDep
 ) -> Principal:
@@ -68,6 +95,19 @@ async def get_principal(
 
 
 PrincipalDep = Annotated[Principal, Depends(get_principal)]
+
+
+async def get_optional_principal(
+    r: ResourcesDep, auth: AuthServiceDep, authorities: GetUserAuthoritiesDep, bearer: BearerDep
+) -> Principal | None:
+    """The caller, or ``None`` when anonymous (public routes that act differently when signed in)."""
+    try:
+        return await get_principal(r, auth, authorities, bearer)
+    except Unauthenticated:
+        return None
+
+
+OptionalPrincipalDep = Annotated[Principal | None, Depends(get_optional_principal)]
 
 
 async def _target_org(request: Request) -> str | None:

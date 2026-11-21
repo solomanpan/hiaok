@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from ...application.model import MovePayload
-from ..dependency import GroupTreeDep, UserGroupCrudDep, WriteSubmitterDep
+from ..dependency import GroupTreeDep, UserGroupCrudDep, WriteSubmitterDep, has_permission
 from ..schema.command import AcceptedResponse, accepted
 from ..schema.common import Keyed, MoveRequest, OrgPageRequest, OrgScoped, PageResponse, TreeNodeResponse
 from ..schema.envelope import ApiRequest, ApiResponse, reply
@@ -10,7 +10,7 @@ from ..schema.user_group import UserGroupCreateRequest, UserGroupResponse, UserG
 router = APIRouter(prefix="/group", tags=["user_group"])
 
 
-@router.post("/tree")
+@router.post("/tree", dependencies=[has_permission("group:tree")])
 async def group_tree(
     request: ApiRequest[OrgScoped], usecase: GroupTreeDep
 ) -> ApiResponse[list[TreeNodeResponse[UserGroupResponse]]]:
@@ -18,7 +18,7 @@ async def group_tree(
     return ApiResponse.ok([TreeNodeResponse[UserGroupResponse].of(node, UserGroupResponse.of) for node in nodes])
 
 
-@router.post("/add")
+@router.post("/add", dependencies=[has_permission("group:add")])
 async def create_user_group(
     request: ApiRequest[UserGroupCreateRequest], submitter: WriteSubmitterDep
 ) -> ApiResponse[AcceptedResponse]:
@@ -26,7 +26,7 @@ async def create_user_group(
     return accepted(await submitter.create("UserGroup", request.request_id, info.org_uuid, info.to_command()))
 
 
-@router.post("/list")
+@router.post("/list", dependencies=[has_permission("group:list")])
 async def list_user_groups(
     request: ApiRequest[OrgPageRequest], usecase: UserGroupCrudDep
 ) -> ApiResponse[PageResponse[UserGroupResponse]]:
@@ -34,13 +34,13 @@ async def list_user_groups(
     return ApiResponse.ok(PageResponse.of(await usecase.list(info.org_uuid, info.query), UserGroupResponse.of))
 
 
-@router.post("/get")
+@router.post("/get", dependencies=[has_permission("group:get")])
 async def get_user_group(request: ApiRequest[Keyed], usecase: UserGroupCrudDep) -> ApiResponse[UserGroupResponse]:
     info = request.req_info
     return reply(await usecase.get(info.org_uuid, info.uuid), UserGroupResponse.of)
 
 
-@router.post("/update")
+@router.post("/update", dependencies=[has_permission("group:update")])
 async def update_user_group(
     request: ApiRequest[UserGroupUpdateRequest], submitter: WriteSubmitterDep
 ) -> ApiResponse[AcceptedResponse]:
@@ -50,13 +50,13 @@ async def update_user_group(
     )
 
 
-@router.post("/delete")
+@router.post("/delete", dependencies=[has_permission("group:delete")])
 async def delete_user_group(request: ApiRequest[Keyed], submitter: WriteSubmitterDep) -> ApiResponse[AcceptedResponse]:
     info = request.req_info
     return accepted(await submitter.delete("UserGroup", request.request_id, info.org_uuid, info.uuid))
 
 
-@router.post("/move")
+@router.post("/move", dependencies=[has_permission("group:move")])
 async def move_group(request: ApiRequest[MoveRequest], submitter: WriteSubmitterDep) -> ApiResponse[AcceptedResponse]:
     """Cycle-safe: moving a node under its own subtree fails with ``tree_cycle``."""
     info = request.req_info

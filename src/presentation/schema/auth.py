@@ -11,9 +11,18 @@ class LoginRequest(OrgScoped):
     tenant_uuid: str = Field(..., examples=["tenant-1"])
     username: str = Field(..., min_length=1, max_length=64, examples=["alice"])
     password: str = Field(..., min_length=1, max_length=128, repr=False)
+    captcha_id: str | None = Field(default=None, description="from POST /auth/captcha; needed when captcha is required")
+    captcha_code: str | None = Field(default=None, max_length=16)
 
     def to_command(self) -> LoginCommand:
         return LoginCommand(self.org_uuid, self.tenant_uuid, self.username, self.password)
+
+
+class CaptchaResponse(ApiModel):
+    required: bool = Field(description="false: captcha is switched off, send no captchaId / captchaCode")
+    captcha_id: str | None = None
+    image: str | None = Field(default=None, description="data: URI of an SVG image")
+    expires_in: int | None = Field(default=None, description="seconds")
 
 
 class LoginResponse(ApiModel):

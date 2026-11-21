@@ -250,12 +250,7 @@ def test_guards_pass_when_authentication_is_off():
 
 
 # ---------------------------------------------------------------- every route is guarded
-# Resources still open to anyone. Shrink this set as each resource gets its ``has_permission(...)`` guards.
-UNGUARDED_YET = {
-    "organization", "tenant", "user", "user_group", "project", "permission", "department", "employee",
-    "sys_config", "sys_log",
-}  # fmt: skip
-PUBLIC = {"/auth/login"}
+PUBLIC = {"/auth/login", "/auth/captcha", "/user/register"}  # register is protected by the captcha instead
 
 
 def _guarded(route: APIRoute) -> bool:
@@ -279,18 +274,8 @@ def _routes() -> list[APIRoute]:
 
 
 def test_every_route_is_guarded_or_explicitly_open():
-    open_routes = [
-        f"{r.path} ({r.tags})"
-        for r in _routes()
-        if not _guarded(r) and r.path not in PUBLIC and not set(cast(list[str], r.tags)) & UNGUARDED_YET
-    ]
+    open_routes = [f"{r.path} ({r.tags})" for r in _routes() if not _guarded(r) and r.path not in PUBLIC]
     assert open_routes == [], "add has_permission(...) or authenticated() to these routes"
-
-
-def test_unguarded_list_only_holds_resources_that_are_still_open():
-    for tag in UNGUARDED_YET:
-        routes = [r for r in _routes() if tag in (r.tags or [])]
-        assert any(not _guarded(r) for r in routes), f"'{tag}' is fully guarded now: drop it from UNGUARDED_YET"
 
 
 def test_me_returns_roles_permissions_and_the_menu_tree():

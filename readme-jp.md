@@ -102,6 +102,9 @@ POST /v1/api/hiaok/user/add   {"requestId": "...", "reqInfo": {"orgUuid": "...",
 7. **Kafka のルーティング**：`infrastructure/messaging/topics.py` で新しいエンティティとイベントにトピックを割り当てます（忘れるとテストが失敗します）。
 8. **認可と翻訳**：ルートに `dependencies=[has_permission("xxx:add")]` を付け、エラーメッセージを `presentation/messages.py` に追加します（翻訳が無ければテストが失敗します）。
 
+> **すべてのルートに認可があります**（`<resource>:<endpoint>`、例 `user:add`。`user:*` はリソース全体、`*` はプラットフォーム管理者で全組織を操作可）。公開ルート：`auth/login`、`auth/captcha`、`user/register`（キャプチャ保護。`roleUuids` には `user:assign-roles` が必要）、`/health`。新規組織の `ORG_ADMIN` ロールには組織内の全リソースの `<resource>:*` が付与されます（`*` ではない）。初回は `AUTH_ENABLED=false` で組織・管理者を作成するか、`AUTH_PLATFORM_ORG_UUID` の `*` ユーザーでログインしてください。
+
+
 `codegen/` のメタテンプレート（jinja2）と仕様ファイルから、この骨格を生成することもできます。[codegen/README.md](codegen/README.md) を参照してください。
 
 ### 2.4 各層の書き方
@@ -191,6 +194,8 @@ async def handler(principal: PrincipalDep): ...  # 呼び出し元を知りた�
 - **テナント分離**：ボディの `reqInfo.orgUuid` が呼び出し元の組織でなければ 403 `org_mismatch` を返します。`AUTH_PLATFORM_ORG_UUID` で指定したプラットフォーム組織と、`*` を持つユーザーは組織をまたげます。
 - **結果**：未ログイン / トークン無効・期限切れ → `code` 401（`unauthenticated`）、権限なし → 403（`permission_denied` / `role_denied`）。HTTP ステータスは他の業務エラーと同様 200 のままです。
 - **スイッチ**：`AUTH_ENABLED=false` ではすべてのガードが通過し、`X-Operator` ヘッダーが操作者になります（ローカルデバッグ・初回セットアップ用）。
+- **認証コード**（既定はオフ）：`AUTH_CAPTCHA_ENABLED=true` のとき、`POST /auth/login` と `POST /user/register` に `captchaId` と `captchaCode` が必要です。使い捨て画像は `POST /auth/captcha` で取得します（有効期間 `AUTH_CAPTCHA_TTL_SECONDS`、既定 120 秒。失敗すると無効になります）。
+- **CORS**：`APP_CORS_ORIGINS`（カンマ区切り。例 `http://localhost:5173,tauri://localhost`）を設定すると、フロントエンド hiaok-web（Web / デスクトップ / モバイル）から API を呼べます。
 
 ### 3.3 権限とメニューの計算
 

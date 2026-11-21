@@ -107,8 +107,9 @@ def get_provisioning_service(
     tenants: TenantServiceDep,
     roles: RoleServiceDep,
     configs: SysConfigServiceDep,
+    permissions: PermissionServiceDep,
 ) -> ProvisioningService:
-    return ProvisioningService(r.tx, r.bus, orgs, tenants, roles, configs)
+    return ProvisioningService(r.tx, r.bus, orgs, tenants, roles, configs, permissions)
 
 
 def get_onboarding_service(r: ResourcesDep, employees: EmployeeServiceDep, users: UserServiceDep) -> OnboardingService:

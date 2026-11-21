@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 
 import anyio
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from .application.config import Settings, get_settings
 from .application.service import CommandService, SysLogService
@@ -80,6 +81,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     install_context_middleware(app)
     install_exception_handlers(app)
+    if settings.app.cors_origin_list:  # the web / desktop / mobile console (hiaok-web) calls the API cross-origin
+        app.add_middleware(
+            CORSMiddleware,
+            allow_origins=settings.app.cors_origin_list,
+            allow_methods=["GET", "POST", "OPTIONS"],
+            allow_headers=["Authorization", "Content-Type", "X-Request-Id", "X-Operator", "Accept-Language"],
+            expose_headers=["X-Request-Id", "Content-Language"],
+        )
     app.include_router(health.router)
     app.include_router(api_router)
     return app

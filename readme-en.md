@@ -102,6 +102,9 @@ POST /v1/api/hiaok/user/add   {"requestId": "...", "reqInfo": {"orgUuid": "...",
 7. **Kafka routing**: give the new entity and its events a topic in `infrastructure/messaging/topics.py` (the tests fail if you forget).
 8. **Authorization and translations**: add `dependencies=[has_permission("xxx:add")]` to the routes; add the error messages to `presentation/messages.py` (the tests fail on missing translations).
 
+> **Every route is guarded** (`<resource>:<endpoint>`, e.g. `user:add`; `user:*` covers a resource, `*` is the platform superuser and may act on any organization). Open routes: `auth/login`, `auth/captcha`, `user/register` (captcha-protected; `roleUuids` needs `user:assign-roles`) and `/health`. A new organization's `ORG_ADMIN` role gets `<resource>:*` for everything inside the organization (not `*`). Bootstrap: provision the first organization/admin with `AUTH_ENABLED=false`, or sign in as a `*` user of `AUTH_PLATFORM_ORG_UUID`.
+
+
 You can also generate this skeleton from the meta templates (jinja2) in `codegen/` and a spec file; see [codegen/README.md](codegen/README.md).
 
 ### 2.4 Writing each layer
@@ -191,6 +194,8 @@ async def handler(principal: PrincipalDep): ...  # when you need to know who is 
 - **Tenant isolation**: when `reqInfo.orgUuid` in the body is not the caller's organization the guard answers 403 `org_mismatch`. The platform organization named by `AUTH_PLATFORM_ORG_UUID`, and users holding `*`, may cross organizations.
 - **Results**: not logged in / token invalid or expired → `code` 401 (`unauthenticated`); missing permission → 403 (`permission_denied` / `role_denied`). The HTTP status stays 200, like every other business error.
 - **Switch**: with `AUTH_ENABLED=false` every guard lets the call through and the `X-Operator` header names the operator (local debugging, first-time setup).
+- **Captcha** (off by default): with `AUTH_CAPTCHA_ENABLED=true`, `POST /auth/login` and `POST /user/register` need `captchaId` + `captchaCode`. Fetch a one-time image (valid `AUTH_CAPTCHA_TTL_SECONDS`, default 120) from `POST /auth/captcha` (`{required, captchaId, image, expiresIn}`; `required:false` when off). A wrong answer burns the captcha.
+- **CORS**: set `APP_CORS_ORIGINS` (comma-separated, e.g. `http://localhost:5173,tauri://localhost`) so the web / desktop / mobile console [hiaok-web](https://github.com/solomanpan/hiaok-web) can call the API.
 
 ### 3.3 How permissions and menus are computed
 

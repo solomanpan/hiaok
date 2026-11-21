@@ -1,5 +1,6 @@
 from .auth_service import AuthService
 from .base import ApplicationService, CrudService
+from .captcha_service import CaptchaService
 from .command_service import CommandService, command_log_uuid
 from .datasource import master, slave
 from .employee_service import EmployeeService
@@ -16,6 +17,7 @@ from .user_service import UserService
 __all__ = [
     "ApplicationService",
     "AuthService",
+    "CaptchaService",
     "CommandService",
     "CrudService",
     "DepartmentService",

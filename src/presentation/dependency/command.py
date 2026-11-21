@@ -129,7 +129,9 @@ def build_write_handlers(r: Resources) -> Mapping[str, CommandHandler]:
 
     # organization: the uuid is the organization itself
     org_crud = get_organization_crud(organizations)
-    provision = get_provision_organization(get_provisioning_service(r, organizations, tenants, roles, configs))
+    provision = get_provision_organization(
+        get_provisioning_service(r, organizations, tenants, roles, configs, permissions)
+    )
     update_detail = get_update_org_detail(organizations)
     handlers["Organization.create"] = typed(CreateOrganization, lambda c, m: provision(m))
     handlers["Organization.update"] = typed(UpdateOrganization, lambda c, m: org_crud.update(c.org_uuid, c.org_uuid, m))

@@ -102,6 +102,9 @@ POST /v1/api/hiaok/user/add   {"requestId": "...", "reqInfo": {"orgUuid": "...",
 7. **Kafka 路由**：在 `infrastructure/messaging/topics.py` 给新实体和事件配 topic（没配测试会失败）。
 8. **鉴权与翻译**：接口加 `dependencies=[has_permission("xxx:add")]`；错误文案加到 `presentation/messages.py`（缺翻译测试会失败）。
 
+> **所有接口都已鉴权**（`<资源>:<接口>`，如 `user:add`；`user:*` 覆盖整个资源，`*` 为平台超级权限，可操作任意组织）。开放接口：`auth/login`、`auth/captcha`、`user/register`（受验证码保护；带 `roleUuids` 需要 `user:assign-roles`）和 `/health`。新建组织的 `ORG_ADMIN` 角色会获得组织内所有资源的 `<资源>:*`（不含 `*`）。引导：先用 `AUTH_ENABLED=false` 创建第一个组织/管理员，或使用 `AUTH_PLATFORM_ORG_UUID` 组织中拥有 `*` 的用户登录。
+
+
 也可以用 `codegen/` 里的元模板（jinja2）按规格文件生成以上骨架，见 [codegen/README.md](codegen/README.md)。
 
 ### 2.4 各层怎么写
@@ -189,6 +192,8 @@ async def handler(principal: PrincipalDep): ...  # 需要知道是谁时
 - **租户隔离**：请求体里的 `reqInfo.orgUuid` 不是调用者所属组织时返回 403 `org_mismatch`。`AUTH_PLATFORM_ORG_UUID` 指定的平台组织、以及拥有 `*` 的用户可以跨组织。
 - **返回**：未登录 / token 无效或过期 → `code` 401（`unauthenticated`）；缺权限 → 403（`permission_denied` / `role_denied`）。HTTP 状态保持 200，和其他业务错误一致。
 - **开关**：`AUTH_ENABLED=false` 时所有守卫放行，`X-Operator` 请求头决定操作人（本地调试、首次初始化用）。
+- **验证码**（默认关闭）：`AUTH_CAPTCHA_ENABLED=true` 时，`POST /auth/login` 和 `POST /user/register` 必须带 `captchaId` + `captchaCode`。一次性图片从 `POST /auth/captcha` 获取（有效期 `AUTH_CAPTCHA_TTL_SECONDS`，默认 120 秒；返回 `{required, captchaId, image, expiresIn}`，关闭时 `required:false`）；答错一次即作废。
+- **跨域**：设置 `APP_CORS_ORIGINS`（逗号分隔，如 `http://localhost:5173,tauri://localhost`），前端 [hiaok-web](https://github.com/solomanpan/hiaok-web)（Web / 桌面 / 移动）才能调用 API。
 
 ### 3.3 权限与菜单怎么算
 

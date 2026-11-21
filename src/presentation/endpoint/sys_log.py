@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from ..dependency import GetCommandOutcomeDep, ListLogsDep
+from ..dependency import GetCommandOutcomeDep, ListLogsDep, has_permission
 from ..schema.command import CommandOutcomeRequest, CommandOutcomeResponse
 from ..schema.common import PageResponse
 from ..schema.envelope import ApiRequest, ApiResponse
@@ -9,7 +9,7 @@ from ..schema.sys_log import SysLogListRequest, SysLogResponse
 router = APIRouter(prefix="/log", tags=["sys_log"])
 
 
-@router.post("/list")
+@router.post("/list", dependencies=[has_permission("log:list")])
 async def list_logs(
     request: ApiRequest[SysLogListRequest], usecase: ListLogsDep
 ) -> ApiResponse[PageResponse[SysLogResponse]]:
@@ -18,7 +18,7 @@ async def list_logs(
     return ApiResponse.ok(PageResponse.of(await usecase(info.org_uuid, info.query, info.event_type), SysLogResponse.of))
 
 
-@router.post("/get-by-request")
+@router.post("/get-by-request", dependencies=[has_permission("log:get-by-request")])
 async def get_command_outcome(
     request: ApiRequest[CommandOutcomeRequest], usecase: GetCommandOutcomeDep
 ) -> ApiResponse[CommandOutcomeResponse]:
