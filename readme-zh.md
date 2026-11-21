@@ -35,7 +35,7 @@ docker compose --profile kafka up -d --build                 # 加 Kafka，并�
 
 - 配置：`APP_ENV`（真实环境变量）选择 profile，读取 `.env` 再读 `.env.<APP_ENV>`，真实环境变量优先。完整列表见[配置参考](#8-配置参考)。
 - 迁移：`uv run alembic revision --autogenerate -m "..."`。不使用触发器：`update_time` 由 SQLAlchemy `onupdate=func.now()` 在每条 UPDATE 中写入。改表后执行 `uv run python scripts/gen_db_doc.py` 重新生成 [`db.properties.md`](db.properties.md)（测试会校验它是否过期）。
-- 首次使用没有任何用户，可以先用 `AUTH_ENABLED=false` 启动，创建组织、角色和管理员之后再打开认证（见[如何鉴权](#3-如何鉴权)）。
+- 首次使用没有任何用户。在开启认证的情况下创建第一个组织和管理员：`uv run hiaok bootstrap --org-code ACME --org-name "Acme" --username admin`（单个事务；密码取 `--password` 或 `HIAOK_ADMIN_PASSWORD`，都没有则自动生成并只打印一次）。生产部署与上线检查清单见 [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 2. 如何使用这套 DDD 框架
 
@@ -102,7 +102,7 @@ POST /v1/api/hiaok/user/add   {"requestId": "...", "reqInfo": {"orgUuid": "...",
 7. **Kafka 路由**：在 `infrastructure/messaging/topics.py` 给新实体和事件配 topic（没配测试会失败）。
 8. **鉴权与翻译**：接口加 `dependencies=[has_permission("xxx:add")]`；错误文案加到 `presentation/messages.py`（缺翻译测试会失败）。
 
-> **所有接口都已鉴权**（`<资源>:<接口>`，如 `user:add`；`user:*` 覆盖整个资源，`*` 为平台超级权限，可操作任意组织）。开放接口：`auth/login`、`auth/captcha`、`user/register`（受验证码保护；带 `roleUuids` 需要 `user:assign-roles`）和 `/health`。新建组织的 `ORG_ADMIN` 角色会获得组织内所有资源的 `<资源>:*`（不含 `*`）。引导：先用 `AUTH_ENABLED=false` 创建第一个组织/管理员，或使用 `AUTH_PLATFORM_ORG_UUID` 组织中拥有 `*` 的用户登录。
+> **所有接口都已鉴权**（`<资源>:<接口>`，如 `user:add`；`user:*` 覆盖整个资源，`*` 为平台超级权限，可操作任意组织）。开放接口：`auth/login`、`auth/captcha`、`user/register`（受验证码保护；带 `roleUuids` 需要 `user:assign-roles`）和 `/health`。新建组织的 `ORG_ADMIN` 角色会获得组织内所有资源的 `<资源>:*`（不含 `*`）。初始化：`hiaok bootstrap` 在开启认证的情况下创建第一个组织及其管理员；`AUTH_PLATFORM_ORG_UUID` 组织的用户可以管理所有组织。
 
 
 也可以用 `codegen/` 里的元模板（jinja2）按规格文件生成以上骨架，见 [codegen/README.md](codegen/README.md)。
@@ -204,9 +204,9 @@ async def handler(principal: PrincipalDep): ...  # 需要知道是谁时
 
 ### 3.4 现状与待办
 
-- 目前 `role`、`menu` 和 `/auth/*` 接入了守卫；其他资源还没有。`tests/unit/presentation/test_security.py` 的 `UNGUARDED_YET` 列出尚未接入的资源，新增接口忘记加守卫会让测试失败；资源接完守卫后，把它从该集合里删掉。
-- `/user/authorities` 目前没有守卫，任何人都能查任何用户的权限，应尽快补上。
-- 首个管理员需要手工初始化（`AUTH_ENABLED=false` 启动后注册）。
+- 所有接口都已接入守卫；新增受保护接口忘记加守卫，架构测试会失败。
+- 首个管理员用 `hiaok bootstrap` 创建（全程不关闭认证）。
+- 刻意不做：数据（行级）权限、组织内的租户隔离、refresh token、登录限流，见 [README.md](README.md) 的 “Design decisions and non-goals”。
 
 ## 4. Kafka 的使用方式
 

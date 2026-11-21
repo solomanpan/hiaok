@@ -35,7 +35,7 @@ docker compose --profile kafka up -d --build                 # Kafka も起動�
 
 - 設定：実際の環境変数 `APP_ENV` でプロファイルを選びます。`.env`、続いて `.env.<APP_ENV>` を読み込み、実際の環境変数が優先されます。全項目は[設定リファレンス](#8-設定リファレンス)を参照してください。
 - マイグレーション：`uv run alembic revision --autogenerate -m "..."`。トリガーは使いません。`update_time` は SQLAlchemy の `onupdate=func.now()` が UPDATE ごとに書き込みます。テーブルを変更したら `uv run python scripts/gen_db_doc.py` で [`db.properties.md`](db.properties.md) を再生成します（古くなっていればテストが失敗します）。
-- 初期状態ではユーザーがいません。まず `AUTH_ENABLED=false` で起動し、組織・ロール・管理者を作成してから認証を有効にしてください（[認可の仕組み](#3-認可の仕組み)参照）。
+- 初期状態ではユーザーがいません。認証を有効にしたまま最初の組織と管理者を作成します：`uv run hiaok bootstrap --org-code ACME --org-name "Acme" --username admin`（1 トランザクション。パスワードは `--password` か `HIAOK_ADMIN_PASSWORD`、どちらもなければ生成して一度だけ表示）。本番構成とリリース前チェックリストは [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)。
 
 ## 2. この DDD フレームワークの使い方
 
@@ -102,7 +102,7 @@ POST /v1/api/hiaok/user/add   {"requestId": "...", "reqInfo": {"orgUuid": "...",
 7. **Kafka のルーティング**：`infrastructure/messaging/topics.py` で新しいエンティティとイベントにトピックを割り当てます（忘れるとテストが失敗します）。
 8. **認可と翻訳**：ルートに `dependencies=[has_permission("xxx:add")]` を付け、エラーメッセージを `presentation/messages.py` に追加します（翻訳が無ければテストが失敗します）。
 
-> **すべてのルートに認可があります**（`<resource>:<endpoint>`、例 `user:add`。`user:*` はリソース全体、`*` はプラットフォーム管理者で全組織を操作可）。公開ルート：`auth/login`、`auth/captcha`、`user/register`（キャプチャ保護。`roleUuids` には `user:assign-roles` が必要）、`/health`。新規組織の `ORG_ADMIN` ロールには組織内の全リソースの `<resource>:*` が付与されます（`*` ではない）。初回は `AUTH_ENABLED=false` で組織・管理者を作成するか、`AUTH_PLATFORM_ORG_UUID` の `*` ユーザーでログインしてください。
+> **すべてのルートに認可があります**（`<resource>:<endpoint>`、例 `user:add`。`user:*` はリソース全体、`*` はプラットフォーム管理者で全組織を操作可）。公開ルート：`auth/login`、`auth/captcha`、`user/register`（キャプチャ保護。`roleUuids` には `user:assign-roles` が必要）、`/health`。新規組織の `ORG_ADMIN` ロールには組織内の全リソースの `<resource>:*` が付与されます（`*` ではない）。初回は `hiaok bootstrap` で認証を有効にしたまま最初の組織と管理者を作成します。`AUTH_PLATFORM_ORG_UUID` の組織のユーザーは全組織を管理できます。
 
 
 `codegen/` のメタテンプレート（jinja2）と仕様ファイルから、この骨格を生成することもできます。[codegen/README.md](codegen/README.md) を参照してください。
@@ -206,9 +206,9 @@ async def handler(principal: PrincipalDep): ...  # 呼び出し元を知りた�
 
 ### 3.4 現状と今後
 
-- 現在ガードが付いているのは `role`、`menu`、`/auth/*` で、他のリソースにはまだありません。`tests/unit/presentation/test_security.py` の `UNGUARDED_YET` が未対応のリソースを列挙しており、ガードの無い新しいエンドポイントはテストを失敗させます。リソースにガードを付け終えたら、その集合から外してください。
-- `/user/authorities` にはまだガードがなく、誰でも誰の権限でも照会できます。早めに追加してください。
-- 最初の管理者は手作業で作成します（`AUTH_ENABLED=false` で起動して登録）。
+- すべてのルートにガードがあります。保護対象の新しいルートにガードがなければアーキテクチャテストが失敗します。
+- 最初の管理者は `hiaok bootstrap` で作成します（認証は有効のまま）。
+- 意図的にやらないこと：データ（行レベル）権限、組織内のテナント分離、リフレッシュトークン、ログイン回数制限（[README.md](README.md) の “Design decisions and non-goals”）。
 
 ## 4. Kafka の使い方
 

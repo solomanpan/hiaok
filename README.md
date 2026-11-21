@@ -10,6 +10,8 @@ A lightweight permission center: four DDD layers, event-driven (Kafka / Redis St
 
 Each guide covers: quick start · how to use the DDD framework · how authorization works · Kafka · Redis · i18n · API conventions · configuration · testing.
 
+**Production in five minutes** — PostgreSQL + Redis, no Kafka required, first administrator with `hiaok bootstrap`, go-live checklist: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) · Integrating your own services: [docs/INTEGRATION.md](docs/INTEGRATION.md) · Changes: [CHANGELOG.md](CHANGELOG.md)
+
 System design (English): [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Meta-template code generation: [codegen/README.md](codegen/README.md) · Database DDL: [db.properties.md](db.properties.md)
 
 ## A DDD example, front to back
@@ -80,7 +82,7 @@ Few Python DDD projects go functional; hiaok does it in the main business flow, 
 async def login(users, tenants, hasher, auth, cmd: LoginCommand) -> Result[LoginResult, DomainError]:
     found = await users.find_by_username(cmd.org_uuid, cmd.tenant_uuid, cmd.username)
     if found.is_none():
-        hasher.hash(cmd.password)                      # same cost as a real check: usernames cannot be probed
+        hasher.hash(cmd.password)  # same cost as a real check: usernames cannot be probed
         return UseCaseErrors.invalid_credentials.err()
     user = found.value
     if not hasher.verify(cmd.password, user.password_hash.value):
@@ -103,10 +105,10 @@ class UseCaseErrors(ErrorCatalog):
 
 ```python
 return (
-    AsyncResult.of(users.get(org_uuid, user_uuid))                  # Result[User, DomainError]
+    AsyncResult.of(users.get(org_uuid, user_uuid))  # Result[User, DomainError]
     .ensure(lambda user: roles_exist_in_same_tenant(user, wanted))  # check, keep the user
-    .bind(lambda _: users.assign_roles(org_uuid, user_uuid, wanted))# next step returning a Result
-    .map(UserModel.from_domain)                                     # plain transformation
+    .bind(lambda _: users.assign_roles(org_uuid, user_uuid, wanted))  # next step returning a Result
+    .map(UserModel.from_domain)  # plain transformation
 )
 ```
 
@@ -116,9 +118,10 @@ Read it top to bottom: `of` starts the railway, `ensure` validates, `bind` conti
 
 ```python
 def get_login(users: UserServiceDep, tenants: TenantServiceDep, r: ResourcesDep, auth: AuthServiceDep) -> Login:
-    return auth_uc.login(users, tenants, r.hasher, auth)    # partially applied: Login = (LoginCommand) -> Result
+    return auth_uc.login(users, tenants, r.hasher, auth)  # partially applied: Login = (LoginCommand) -> Result
 
-result = await usecase(request.req_info.to_command())     # in the endpoint
+
+result = await usecase(request.req_info.to_command())  # in the endpoint
 ```
 
 No framework beyond FastAPI's `Depends`; a test calls `login(fake_users, fake_tenants, hasher, auth)(cmd)` directly.
@@ -134,7 +137,7 @@ Decisions:
 - **Four DDD layers, checked by tests.** `presentation → application → domain ← infrastructure`; architecture tests fail when a layer imports the wrong way or a protected route has no guard.
 - **Errors as values.** Use cases return `Result` (Expression); business errors are declared once in an error catalog (hiaok-core) and become localized envelope messages.
 - **One envelope API.** Every call is `POST /v1/api/hiaok/<resource>/<action>` with `{requestId, reqInfo}`, answered by `{code, msg, resultInfo, errorCode}`.
-- **Asynchronous writes, traceable by request id.** add / update / delete answer `accepted`; a consumer applies the command and records its outcome (`log/get-by-request`). Kafka or Redis Streams in production, an in-memory bus for local runs.
+- **Asynchronous writes, traceable by request id.** add / update / delete answer `accepted`; a consumer applies the command and records its outcome (`log/get-by-request`). Redis Streams (the default) or Kafka in production, an in-memory bus for local runs. Why, and what it costs a small deployment: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#why-writes-are-asynchronous-and-what-it-costs).
 - **Write to master, read from slave**, chosen per service method (`@master` / `@slave`).
 - **Opaque tokens, not JWT.** A random token whose session lives in the cache (`session:<sha256(token)>`): sign-out and disabling a user take effect at once, and permission changes evict the cached authorities. The price is a shared cache (Redis) when running several instances.
 - **Permission codes on every route** (`role:add`, `role:*`, `*`), granted through roles; a new organization gets an `ORG_ADMIN` role holding one wildcard per resource (not the cross-organization `*`).

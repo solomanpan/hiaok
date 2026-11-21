@@ -35,7 +35,7 @@ docker compose --profile kafka up -d --build                 # + Kafka (and set 
 
 - Configuration: the real environment variable `APP_ENV` selects a profile; `.env` is read first, then `.env.<APP_ENV>`; real environment variables win. See the [configuration reference](#8-configuration-reference).
 - Migrations: `uv run alembic revision --autogenerate -m "..."`. No triggers are used: `update_time` is written by SQLAlchemy `onupdate=func.now()` on every UPDATE. After changing tables run `uv run python scripts/gen_db_doc.py` to regenerate [`db.properties.md`](db.properties.md) (a test checks it is up to date).
-- A fresh system has no users. Start with `AUTH_ENABLED=false`, create the organization, roles and an administrator, then turn authentication on (see [how authorization works](#3-how-authorization-works)).
+- A fresh system has no users. Create the first organization and its administrator with authentication left on: `uv run hiaok bootstrap --org-code ACME --org-name "Acme" --username admin` (one transaction; the password comes from `--password` or `HIAOK_ADMIN_PASSWORD`, else it is generated and printed once). Production setup and go-live checklist: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## 2. How to use this DDD framework
 
@@ -102,7 +102,7 @@ POST /v1/api/hiaok/user/add   {"requestId": "...", "reqInfo": {"orgUuid": "...",
 7. **Kafka routing**: give the new entity and its events a topic in `infrastructure/messaging/topics.py` (the tests fail if you forget).
 8. **Authorization and translations**: add `dependencies=[has_permission("xxx:add")]` to the routes; add the error messages to `presentation/messages.py` (the tests fail on missing translations).
 
-> **Every route is guarded** (`<resource>:<endpoint>`, e.g. `user:add`; `user:*` covers a resource, `*` is the platform superuser and may act on any organization). Open routes: `auth/login`, `auth/captcha`, `user/register` (captcha-protected; `roleUuids` needs `user:assign-roles`) and `/health`. A new organization's `ORG_ADMIN` role gets `<resource>:*` for everything inside the organization (not `*`). Bootstrap: provision the first organization/admin with `AUTH_ENABLED=false`, or sign in as a `*` user of `AUTH_PLATFORM_ORG_UUID`.
+> **Every route is guarded** (`<resource>:<endpoint>`, e.g. `user:add`; `user:*` covers a resource, `*` is the platform superuser and may act on any organization). Open routes: `auth/login`, `auth/captcha`, `user/register` (captcha-protected; `roleUuids` needs `user:assign-roles`) and `/health`. A new organization's `ORG_ADMIN` role gets `<resource>:*` for everything inside the organization (not `*`). Bootstrap: `hiaok bootstrap` creates the first organization and its administrator with authentication on; a user of `AUTH_PLATFORM_ORG_UUID` may manage every organization.
 
 
 You can also generate this skeleton from the meta templates (jinja2) in `codegen/` and a spec file; see [codegen/README.md](codegen/README.md).
@@ -206,9 +206,9 @@ Permissions = user → enabled roles → union of permission codes. Menus = the 
 
 ### 3.4 Current state and to-do
 
-- Today `role`, `menu` and `/auth/*` use guards; other resources do not yet. `UNGUARDED_YET` in `tests/unit/presentation/test_security.py` lists the resources still open, and a new endpoint without a guard fails the test. When a resource is fully guarded, remove it from that set.
-- `/user/authorities` has no guard yet — anyone can query anyone's authorities. Add one soon.
-- The first administrator is created by hand (start with `AUTH_ENABLED=false` and register).
+- Every route is guarded; an architecture test fails when a new protected route has no guard.
+- The first administrator is created with `hiaok bootstrap` (authentication stays on).
+- Not done on purpose: data (row-level) permissions, tenant isolation inside an organization, refresh tokens, login rate limiting — see "Design decisions and non-goals" in [README.md](README.md).
 
 ## 4. Using Kafka
 
